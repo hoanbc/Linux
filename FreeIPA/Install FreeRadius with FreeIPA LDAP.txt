@@ -1,0 +1,68 @@
+1) Install Radius
+[root@ipa ~]# yum install freeradius freeradius-utils freeradius-ldap freeradius-krb5
+
+2) Change setting /etc/raddb/clients.conf
+client Citigo-Network {
+	ipaddr = 192.168.0.0/16
+	proto = udp
+	secret = Rad1us-Cit!go
+	require_message_authenticator = no
+	nas_type = other
+	limit {
+		max_connections = 16
+		lifetime = 0
+		idle_timeout = 30
+	}
+}
+
+3) Change setting /etc/raddb/sites-enabled/default and /etc/raddb/sites-enabled/inner-tunnel
+
+from
+        #
+        #  The ldap module reads passwords from the LDAP database.
+        -ldap
+
+to
+
+        #
+        #  The ldap module reads passwords from the LDAP database.
+        ldap
+        if ((ok || updated) && User-Password) {
+            update {
+                control:Auth-Type := ldap
+            }
+        }
+----
+from
+        #       Auth-Type LDAP {
+        #               ldap
+        #       }
+
+to
+               Auth-Type LDAP {
+                       ldap
+               }
+
+4) Create soft link
+ln -s /etc/raddb/mods-available/ldap /etc/raddb/mods-enabled/
+
+edit /etc/raddb/mods-enabled/ldap
+ldap {
+	server = 'ldap2.citigo.dc ldap1.citigo.dc'
+	port = 389
+	identity = 'uid=ldap.auth,cn=users,cn=accounts,dc=citigo,dc=dc'
+	password = EjfwJ1FpetklcY
+	base_dn = 'cn=users,cn=accounts,dc=citigo,dc=dc'
+	sasl {
+	}
+
+user {
+		base_dn = "${..base_dn}"
+		filter = "(|(&(uid=%{%{Stripped-User-Name}:-%{User-Name}})(memberOf=cn=citigo-network,cn=groups,cn=accounts,dc=citigo,dc=dc)))"
+		sasl {
+		}
+	}
+
+5) Open firewall and start radius
+[root@ipa ~]# firewall-cmd --permanent --zone=public --add-port=1812/udp --add-port=1813/udp
+[root@ipa ~]# systemctl restart firewalld.service

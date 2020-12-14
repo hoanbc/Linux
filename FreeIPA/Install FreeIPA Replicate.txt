@@ -1,0 +1,41 @@
+1) Change hostname to FQND
+hostnamectl set-hostname ldap2.citigo.dc
+
+2) Add hosts information
+vim /etc/hosts
+192.168.47.25	ldap2.citigo.dc
+
+3) Install FreeIPA-Server, FreeIPA-DNS, FreeIPA-Client
+yum install freeipa-server freeipa-server-dns freeipa-client
+
+4) Join host to FreeIPA Master
+ipa-client --force-ntpd
+
+5) Join host to 'ipaserver' Hosts Groups
+Identity -> Groups -> Hosts Groups -> ipaservers -> Add -> ldap2.citigo.dc
+
+6) Open Port both ldap1.citigo.dc and ldap2.citigo.dc
+firewall-cmd --add-service=freeipa-replication --permanent
+firewall-cmd --add-service={freeipa-ldap,freeipa-ldaps,dns,ntp} --permanent
+firewall-cmd --reload
+
+7) Replicate FreeIPA
+ipa-replica-install --setup-ca --setup-dns --forwarder 8.8.8.8
+
+Run connection check to master
+Connection check OK
+Configuring NTP daemon (ntpd)
+  [1/4]: stopping ntpd
+  [2/4]: writing configuration
+  [3/4]: configuring ntpd to start on boot
+
+.....
+.....
+
+  [7/9]: stopping directory server
+  [8/9]: restoring configuration
+  [9/9]: starting directory server
+Done.
+Restarting the KDC
+
+8) Done
