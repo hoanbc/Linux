@@ -1,0 +1,38 @@
+Bước 1: Tìm mirror bạn mong muốn ở đây: https://www.centos.org/download/mirrors/
+Ví dụ mình chọn mirror máy chủ Viettel: http://centos-hcm.viettelidc.com.vn/ để chạy lệnh Yum
+
+Bước 2: Update đường dẫn mirror
+Sửa file /etc/yum.repos.d/CentOS-Base.repo, comment mirrorlist và uncomment baseurl và sửa như bên dưới
+[base]
+name=CentOS-$releasever - Base
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os&infra=$infra
+baseurl=http://centos-hcm.viettelidc.com.vn/$releasever/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+#released updates
+[updates]
+name=CentOS-$releasever - Updates
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=updates&infra=$infra
+baseurl=http://centos-hcm.viettelidc.com.vn/$releasever/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+#additional packages that may be useful
+[extras]
+name=CentOS-$releasever - Extras
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=extras&infra=$infra
+baseurl=http://centos-hcm.viettelidc.com.vn/$releasever/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+Bước 3: Vô hiệu hóa plugin fastestmirror
+Vì plugin fastestmirror sẽ thực hiện tìm kiếm mirror gần chúng ta nhất, nên cần vô hiệu hóa nó đi.
+Sửa file: /etc/yum/pluginconf.d/fastestmirror.conf và set tham số enabled=0
+[main]
+enabled=0
+
+Bước 4: Clean lại toàn bộ cache của Yum bằng command sau:
+sudo yum clean all
+
+sudo yum repolist -v
+
+
