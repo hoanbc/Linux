@@ -1,0 +1,16 @@
+Topology: Users request to website (1.1.1.1)  -> Haproxy (2.2.2.2) -> Backend (3.3.3.3)
+Check log file on backend server, only see ip of haproxy. So, we need tranfer realip address from User to log of backend server
+
+Mục đích: chuyển tiếp thông tin người dùng truy cập vào trang web từ máy chủ Haproxy tới máy chủ Backend, trên Haproxy đã tiến hành bật "option forwardfor"
+
+Step 1) Edit file log on backend (running httpd) 
+	vi /etc/httpd/conf/httpd.conf/httpd -> #goto line 198
+		LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+
+Step 2) Check vaild file httpd config
+	apachectl -t  -> If status show ok, goto step 3
+	
+Step 3) Restart httpd service
+	systemctl restart httpd
+	
+Step 4) Check file access.log và error.log and see real ip address from user send request to server
