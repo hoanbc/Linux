@@ -1,1 +1,87 @@
-1
+Today i will tutorial you how to install haproxy from source code on server running CentOS version 8
+
+Step 1) Connect to server via ssh or console
+Step 2) Create file script for install automatic
+cat << EOF > /tmp/installhaproxy.sh
+#!/bin/bash
+### VARIABLES ###
+PRE_PACK="gcc perl openssl-devel pcre-devel zlib-devel systemd-devel wget"
+VERPATH="2.3"
+VER="2.3.5"
+cecho "Installing/upgrading your web server..." 
+dnf -y -q install $PRE_PACK > /dev/null
+cd /tmp
+wget http://www.haproxy.org/download/$VERPATH/src/haproxy-$VER.tar.gz
+tar xzf haproxy-$VER.tar.gz && rm -f haproxy*.tar.gz;
+cd haproxy-$VER
+# With vCPU, use CPU=generic
+cecho "Configuring and Making HAPROXY" 
+make TARGET=linux-glibc CPU=native USE_OPENSSL=1 USE_ZLIB=1 USE_PCRE2=1 USE_PCRE2_JIT=1 USE_SYSTEMD=1 USE_PCRE=1 USE_LIBCRYPT=1 USE_LINUX_TPROXY=1 SSL_LIB=/usr/local/lib64/ SSL_INC=/usr/include/openssl/
+cecho "Installing HAPROXY" 
+make install
+cecho "Adding HAProxy User" 
+id -u haproxy &>/dev/null || useradd -s /usr/sbin/nologin -r haproxy
+cecho "Creating config and Adding Daemon" 
+cd contrib/systemd/
+make
+cp haproxy.service /etc/systemd/system/     # don't forget re-edit bin path
+chmod 664 /etc/systemd/system/haproxy.service
+mkdir -p /etc/haproxy     # creating directory where the config file must reside
+touch /etc/haproxy/haproxy.cfg # blank config file
+mkdir -p /var/lib/haproxy     # create directory for stats file
+touch /var/lib/haproxy/stats     # creating stats file
+cecho "checking config and starting service" 
+systemctl enable haproxy
+exit 0
+EOF
+
+3) Set permission for excute file
+chmod 777 /tmp/installhaproxy.sh
+
+4) Run file script
+sh /tmp/installhaproxy.sh
+
+5) Config simple haproxy.cfg file
+cat << EOF > /etc/haproxy/haproxy.cfg
+global
+    nbproc    1
+    nbthread  8
+    cpu-map   auto:1/1-8 0-7
+    maxconn     500000
+    user        haproxy
+    group       haproxy
+    daemon
+    tune.comp.maxlevel 5
+    tune.ssl.default-dh-param 2048
+#####################################
+defaults
+    mode                    http
+    option                  http-server-close
+    option                  forwardfor header X-Real-IP
+    timeout http-request    1m
+    timeout queue           1m
+    timeout connect         1m
+    timeout client          2m
+    timeout server          2m
+    timeout http-keep-alive 1m
+    timeout check           10s
+    maxconn                 500000
+#HTTP Config
+frontend  http80
+    bind *:80
+#1: ACL:
+acl host_abc                  hdr(host) -i    abc.vn
+#2: USE BACKEND:
+use_backend server_abc               if  host_abc
+#3: BACKEND:
+backend server_abc
+    server      datapro_server 172.16.1.8:80
+EOF
+
+5) Open firewall for Service http and https
+firewall-cmd --add-service={http,https) --permanent
+firewall-cmd --reload
+
+Note:
+Check file config vaild: haproxy -c -V -f /etc/haproxy/haproxy.cfg
+Check service running: systemctl status haproxy
