@@ -1,0 +1,158 @@
+###Resize LVM when extend capacity disk
+
+Step1: Check current config
+[root@srv-k8s-master1 ~]# df -h
+Filesystem             Size  Used Avail Use% Mounted on
+devtmpfs               3.8G     0  3.8G   0% /dev
+tmpfs                  3.8G     0  3.8G   0% /dev/shm
+tmpfs                  3.8G  9.0M  3.8G   1% /run
+tmpfs                  3.8G     0  3.8G   0% /sys/fs/cgroup
+/dev/mapper/rhel-root   25G  3.1G   22G  13% /
+/dev/nvme0n1p1        1014M  304M  711M  30% /boot
+tmpfs                  775M     0  775M   0% /run/user/0
+
+[root@srv-k8s-master1 ~]# fdisk -l
+Disk /dev/nvme0n1: 50 GiB, 53687091200 bytes, 104857600 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x261f0afd
+
+Device         Boot    Start       End  Sectors Size Id Type
+/dev/nvme0n1p1 *        2048   2099199  2097152   1G 83 Linux
+/dev/nvme0n1p2       2099200  62914559 60815360  29G 8e Linux LVM
+/dev/nvme0n1p3      62914560 104857599 41943040  20G 8e Linux LVM
+
+
+
+
+Disk /dev/mapper/rhel-root: 25 GiB, 26839351296 bytes, 52420608 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/mapper/rhel-swap: 4 GiB, 4294967296 bytes, 8388608 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Step2: Recreate partion
+[root@srv-k8s-master1 ~]# fdisk  /dev/nvme0n1
+
+Welcome to fdisk (util-linux 2.32.1).
+Changes will remain in memory only, until you decide to write them.
+Be careful before using the write command.
+
+
+Command (m for help): p
+Disk /dev/nvme0n1: 50 GiB, 53687091200 bytes, 104857600 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x261f0afd
+
+Device         Boot    Start       End  Sectors Size Id Type
+/dev/nvme0n1p1 *        2048   2099199  2097152   1G 83 Linux
+/dev/nvme0n1p2       2099200  62914559 60815360  29G 8e Linux LVM
+/dev/nvme0n1p3      62914560 104857599 41943040  20G 8e Linux LVM
+
+Command (m for help): d
+Partition number (1-3, default 3): 
+
+Partition 3 has been deleted.
+
+Command (m for help): d
+Partition number (1,2, default 2): 
+
+Partition 2 has been deleted.
+
+Command (m for help): n
+Partition type
+   p   primary (1 primary, 0 extended, 3 free)
+   e   extended (container for logical partitions)
+Select (default p): p
+Partition number (2-4, default 2): 
+First sector (2099200-104857599, default 2099200): 
+Last sector, +sectors or +size{K,M,G,T,P} (2099200-104857599, default 104857599): 
+
+Created a new partition 2 of type 'Linux' and of size 49 GiB.
+Partition #2 contains a LVM2_member signature.
+
+Do you want to remove the signature? [Y]es/[N]o: n
+
+Command (m for help): t
+Partition number (1,2, default 2): 
+Hex code (type L to list all codes): 8e
+
+Changed type of partition 'Linux' to 'Linux LVM'.
+
+Command (m for help): w
+The partition table has been altered.
+Syncing disks.
+
+Step3: Resize physical volume
+
+[root@srv-k8s-master1 ~]# pvs
+  PV             VG   Fmt  Attr PSize   PFree
+  /dev/nvme0n1p2 rhel lvm2 a--  <29.00g    0 
+
+[root@srv-k8s-master1 ~]# pvresize /dev/nvme0n1p2
+  Physical volume "/dev/nvme0n1p2" changed
+  1 physical volume(s) resized or updated / 0 physical volume(s) not resized
+[root@srv-k8s-master1 ~]# pvs
+  PV             VG   Fmt  Attr PSize   PFree 
+  /dev/nvme0n1p2 rhel lvm2 a--  <49.00g 20.00g
+
+
+Step4: Resize logical volume
+root@srv-k8s-master1 ~]# lvs
+  LV   VG   Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  root rhel -wi-ao---- <25.00g                                                    
+  swap rhel -wi-ao----   4.00g                                                    
+
+[root@srv-k8s-master1 ~]# lvextend /dev/mapper/rhel-root /dev/nvme0n1p2 
+  Size of logical volume rhel/root changed from <25.00 GiB (6399 extents) to <45.00 GiB (11519 extents).
+  Logical volume rhel/root successfully resized.
+
+[root@srv-k8s-master1 ~]# lvs
+  LV   VG   Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  root rhel -wi-ao---- <45.00g                                                    
+  swap rhel -wi-ao----   4.00g       
+
+Step5: Resize filesystem
+[root@srv-k8s-master1 ~]# df -h
+Filesystem             Size  Used Avail Use% Mounted on
+devtmpfs               3.8G     0  3.8G   0% /dev
+tmpfs                  3.8G     0  3.8G   0% /dev/shm
+tmpfs                  3.8G  9.0M  3.8G   1% /run
+tmpfs                  3.8G     0  3.8G   0% /sys/fs/cgroup
+/dev/mapper/rhel-root   25G  3.1G   22G  13% /
+/dev/nvme0n1p1        1014M  304M  711M  30% /boot
+tmpfs                  775M     0  775M   0% /run/user/0
+
+[root@srv-k8s-master1 ~]# xfs_growfs /dev/mapper/rhel-root 
+meta-data=/dev/mapper/rhel-root  isize=512    agcount=4, agsize=1638144 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1
+data     =                       bsize=4096   blocks=6552576, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=3199, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+data blocks changed from 6552576 to 11795456
+
+[root@srv-k8s-master1 ~]# df -h
+Filesystem             Size  Used Avail Use% Mounted on
+devtmpfs               3.8G     0  3.8G   0% /dev
+tmpfs                  3.8G     0  3.8G   0% /dev/shm
+tmpfs                  3.8G  9.0M  3.8G   1% /run
+tmpfs                  3.8G     0  3.8G   0% /sys/fs/cgroup
+/dev/mapper/rhel-root   45G  3.2G   42G   8% /
+/dev/nvme0n1p1        1014M  304M  711M  30% /boot
+tmpfs                  775M     0  775M   0% /run/user/0
