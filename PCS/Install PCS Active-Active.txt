@@ -1,0 +1,114 @@
+###Info
+vcenter: srv-vcenter.systemtest.xyz
+node1:192.168.1.201-srv-pcs1.systemtest.local -> VM: SRV-PCS1
+node2:192.168.1.202-srv-pcs2.systemtest.local -> VM: SRV-PCS2
+
+
+###Setup Cluster
+subscription-manager repos --enable=rhel-8-for-x86_64-highavailability-rpms
+dnf install -y pcs 
+
+firewall-cmd --permanent --add-service=high-availability
+firewall-cmd --add-service=high-availability
+firewall-cmd --reload
+
+passwd hacluster
+
+systemctl start pcsd
+systemctl enable pcsd
+
+pcs host auth srv-pcs1.systemtest.local srv-pcs2.systemtest.local
+pcs cluster setup hbc_cluster_haproxy --start srv-pcs1.systemtest.local srv-pcs2.systemtest.local
+
+pcs cluster enable --all
+
+
+###ISCSI Connect and Multipath Disk
+dnf install -y device-mapper-multipath iscsi-initiator-utils
+
+cat << EOL > /etc/multipath.conf
+defaults {
+        user_friendly_names yes
+        find_multipaths yes
+}
+blacklist {
+        devnode "sda"
+        devnode "^(ram|raw|loop|fd|md|dm-|sr|scd|st)[0-9]*"
+        devnode "^hd[a-z]"
+        devnode "^cciss!c[0-9]d[0-9].*"
+}
+devices {
+        device {
+                vendor               "NETAPP"
+                product              "NewFiler"
+                path_grouping_policy multibus
+                path_selector        "round-robin 0"
+                failback             immediate
+        }
+}
+EOL
+
+systemctl enable multipathd.service
+systemctl start multipathd
+
+vim /etc/iscsi/iscsid.conf
+node.session.auth.authmethod = CHAP
+node.session.auth.username = storage
+node.session.auth.password = storage123
+
+iscsiadm -m discovery -t st -p 192.168.1.252
+192.168.1.252:3260,1 iqn.2006-01.com.openfiler:tsn.088fffd06437
+
+iscsiadm -m node -T iqn.2006-01.com.openfiler:tsn.088fffd06437 -p 192.168.1.252 -l
+iscsiadm -m session --rescan
+systemctl enable iscsi.service
+systemctl start iscsi
+
+###Setup Fence
+dnf install -y fence-agents-vmware-rest
+fence_vmware_rest -a srv-vcenter.systemtest.xyz -l administrator@systemtest.xyz -p "123@123aA" --ssl-insecure -z -o list | grep SRV
+fence_vmware_rest -a srv-vcenter.systemtest.xyz -l administrator@systemtest.xyz -p "123@123aA" --ssl-insecure -z -o status -n SRV-PCS1
+ 
+cat /etc/corosync/corosync.conf
+
+pcs stonith create vmware-fence-rest fence_vmware_rest pcmk_host_map="srv-pcs1.systemtest.local:SRV-PCS1;srv-pcs2.systemtest.local:SRV-PCS2" ipaddr=srv-vcenter.systemtest.xyz ssl=1 login=administrator@systemtest.xyz passwd="123@123aA" ssl_insecure=1 power_wait=3 op monitor interval=60s 
+
+#Test:  pcs stonith fence srv-pcs1.systemtest.local
+
+###Setup GFS2
+subscription-manager repos --enable=rhel-8-for-x86_64-resilientstorage-rpms
+yum install lvm2-lockd gfs2-utils dlm
+
+pcs property set no-quorum-policy=freeze
+pcs resource create dlm --group locking ocf:pacemaker:controld op monitor interval=30s on-fail=fence
+pcs resource clone locking interleave=true
+pcs resource create lvmlockd --group locking ocf:heartbeat:lvmlockd op monitor interval=30s on-fail=fence
+
+
+#Set SystemID for LVM
+vim /etc/lvm/lvm.conf
+system_id_source = "uname"
+lvm systemid
+
+#Turn off auto active on LVM
+vgs --noheadings -o vg_name
+vim /etc/lvm/lvm.conf
+auto_activation_volume_list = [ "rhel_root", "rhel_home" ]
+
+dracut -H -f /boot/initramfs-$(uname -r).img $(uname -r)
+reboot
+
+pvcreate /dev/sdb
+vgcreate --shared vg_share1 /dev/sdb
+lvcreate --activate sy -L5G -n lv_share1 vg_share1
+mkfs.gfs2 -j2 -p lock_dlm -t pcs-cluster:gfs2-share1 /dev/vg_share1/lv_share1
+-j2 tương ứng với số node gfs2_jadd -j 1 /mygfs2
+
+pcs resource create gfs2-share-lv1 --group vg_share1 ocf:heartbeat:LVM-activate lvname=lv_share1 vgname=vg_share1 activation_mode=shared vg_access_mode=lvmlockd
+pcs resource clone vg_share1 interleave=true
+pcs constraint order start locking-clone then vg_share1-clone
+pcs constraint colocation add vg_share1-clone with locking-clone
+
+mkdir /data
+pcs resource create sharedfs1 --group vg_share1 ocf:heartbeat:Filesystem device="/dev/vg_share1/lv_share1" directory="/data/share1" fstype="gfs2" options=noatime op monitor interval=30s on-fail=fence
+mount | grep gfs2

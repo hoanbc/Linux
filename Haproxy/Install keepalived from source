@@ -1,0 +1,98 @@
+Today i will tutorial you how to install keepalived for haproxy service failover on server running CentOS version 8
+Master node: 192.168.1.210
+Backup node: 192.168.1.211
+VIP Address: 192.168.1.215, 192.168.1.216
+
+Step 1) Connect to server via ssh or console
+
+Step 2) Install some package requirement
+dnf install -y gcc kernel-headers kernel-devel curl gcc openssl-devel libnl3-devel net-snmp-devel psmisc ipset-libs
+
+Step 3) Install keepalived from source
+wget https://www.keepalived.org/software/keepalived-2.2.3.tar.gz
+sudo tar -xvf keepalived-2.2.3.tar.gz
+cd keepalived-2.2.3
+
+export LDFLAGS='-L/usr/local/lib64/'
+export CFLAGS='-I/usr/local/include/openssl/'
+
+./configure --enable-snmp
+make
+make install
+
+unset LDFLAGS
+unset CFLAGS
+
+Step 4) Install user keepalived_script
+groupadd -r keepalived_script
+useradd -r -s /sbin/nologin -g keepalived_script -M keepalived_script
+
+sudo cp ./keepalived/keepalived /usr/sbin/
+sudo cp ./keepalived/etc/init.d/keepalived /etc/init.d/
+mkdir /etc/keepalived
+sudo cp ./keepalived/etc/keepalived/keepalived.conf /etc/keepalived/keepalived.conf
+sudo cp ./keepalived/etc/sysconfig/keepalived /etc/sysconfig/keepalived
+
+Step 5) Change file keepalived.conf on Master node 
+vim /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+vrrp_script chk_haproxy {
+    script "/usr/sbin/pidof haproxy"  ###Important for haproxy check status
+    interval 2
+    weight 2
+}
+vrrp_instance kss-keepalived {
+    state MASTER
+    interface ens33
+    virtual_router_id 51
+    priority 101 ###Value Important
+    advert_int 1
+	mcast_src_ip 192.168.1.210
+    authentication {
+        auth_type PASS
+        auth_pass kss
+    }
+    virtual_ipaddress {
+        192.168.1.215 dev ens33
+        192.168.1.216 dev ens33
+    }
+	track_script {
+        chk_haproxy
+    }
+}
+
+Step 6) Change file keepalived.conf on Backup node 
+vim /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+vrrp_script chk_haproxy {
+    script "/usr/sbin/pidof haproxy"  ###Important for haproxy check status
+    interval 2
+    weight 2
+}
+vrrp_instance kss-keepalived {
+    state BACKUP
+    interface ens33
+    virtual_router_id 51
+    priority 100 ###Value Important
+    advert_int 1
+	mcast_src_ip 192.168.1.211
+    authentication {
+        auth_type PASS
+        auth_pass kss
+    }
+    virtual_ipaddress {
+        192.168.1.215 dev ens33
+        192.168.1.216 dev ens33
+    }
+	track_script {
+        chk_haproxy
+    }
+}
+
+Step 7) Open firewall both host running keepalived
+firewall-cmd --zone=public --permanent  --add-rich-rule='rule family="ipv4" source address="192.168.1.0/24" destination address="224.0.0.0/8" protocol value="vrrp" accept'
+firewall-cmd --reload
+
+Step 8) Start and enable keepalived with boot on both host
+systemctl enable keepalived
+systemctl start keepalived

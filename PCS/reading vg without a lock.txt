@@ -1,0 +1,58 @@
+[root@SRV-PCS1 ~]# vgdisplay
+  Reading VG vg_share1 without a lock.
+  --- Volume group ---
+  VG Name               vg_share1
+  System ID
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  9
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               <20.00 GiB
+  PE Size               4.00 MiB
+  Total PE              5119
+  Alloc PE / Size       0 / 0
+  Free  PE / Size       5119 / <20.00 GiB
+  VG UUID               ycvK2x-42Lp-ffYf-pe2Q-advn-cE3K-aYERup
+
+
+[root@SRV-PCS1 ~]# vgremove vg_share1
+  Cannot access VG vg_share1 due to failed lock.
+
+[root@SRV-PCS1 ~]# vgchange --lock-stop vg_share1
+  Reading VG vg_share1 without a lock.
+
+[root@SRV-PCS1 ~]# vgchange --lockstart
+  VG vg_share1 starting dlm lockspace
+  Starting locking.  Waiting until locks are ready...
+
+[root@SRV-PCS1 ~]# vgdisplay
+  --- Volume group ---
+  VG Name               vg_share1
+  System ID
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  9
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               <20.00 GiB
+  PE Size               4.00 MiB
+  Total PE              5119
+  Alloc PE / Size       0 / 0
+  Free  PE / Size       5119 / <20.00 GiB
+  VG UUID               ycvK2x-42Lp-ffYf-pe2Q-advn-cE3K-aYERup
+
+[root@SRV-PCS1 ~]# vgremove vg_share1
+  Volume group "vg_share1" successfully removed

@@ -1,0 +1,29 @@
+###Install tlog and cockpit
+dnf install tlog cockpit cockpit-session-recording -y
+
+vim /etc/sssd/sssd.conf
+[domain/local]
+id_provider = files
+
+[sssd]
+domains = local
+services = nss ,pam, ssh, sudo
+
+systemctl restart sssd
+systemctl enable --now sssd
+systemctl enable --now cockpit
+
+firewall-cmd --add-service=cockpit --permanent
+firewall-cmd --reload
+
+###Setting recording on cockpit session srecording
+https://ipserver:9090
+System -> session recording -> General Config -> SSSD config -> All -> Save
+
+###Test -> login ssh to server
+
+
+[root@srv-rhel data]# journalctl -o verbose | grep -i \"rec\"
+    MESSAGE={"ver":"2.3","host":"srv-rhel","rec":"daee881dcb114a56bf7fc1ff031cc8f9-2886-ad54","user":"devops","term":"xterm","session":6,"id":1,"pos":0,"time":1640059871.366,"timing":"=80x24+50>43","in_txt":"","in_bin":[],"out_txt":"\u001b]0;devops@srv-rhel:~\u0007[devops@srv-rhel ~]$ ","out_bin":[]}
+
+[root@srv-rhel data]# tlog-play -r journal -M TLOG_REC=daee881dcb114a56bf7fc1ff031cc8f9-2886-ad54

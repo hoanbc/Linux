@@ -1,0 +1,139 @@
+Note:
+- Once you have created a GFS2 file system with the mkfs.gfs2 command, you cannot decrease the size of the file system. You can, however, increase the size of an existing file system with the gfs2_grow command.
+
+
+#Growing a GFS2 file system
+Perform a backup of the data on the file system.
+If you do not know the logical volume that is used by the file system to be expanded, you can determine this by running the df mountpoint command. This will display the device name in the following format:/dev/mapper/vg-lv
+For example, the device name /dev/mapper/shared_vg-shared_lv1 indicates that the logical volume is shared_vg/shared_lv1.
+On one node of the cluster, expand the underlying cluster volume with the lvextend command, using the --lockopt skiplv option to override normal logical volume locking.
+
+[root@SRV-PCS1 ~]# lvextend --lockopt skiplv -L+1G shared_vg/shared_lv1
+WARNING: skipping LV lock in lvmlockd.
+Size of logical volume shared_vg/shared_lv1 changed from 5.00 GiB (1280 extents) to 6.00 GiB (1536 extents).
+WARNING: extending LV with a shared lock, other hosts may require LV refresh.
+Logical volume shared_vg/shared_lv1 successfully resized.
+If you are running RHEL 8.0, on every additional node of the cluster refresh the logical volume to update the active logical volume on that node. This step is not necessary on systems running RHEL 8.1 and later as the step is automated when the logical volume is extended.
+
+[root@SRV-PCS1 ~]# lvchange --refresh shared_vg/shared_lv1
+One one node of the cluster, increase the size of the GFS2 file system. Do not extend the file system if the logical volume was not refreshed on all of the nodes, otherwise the file system data may become unavailable throughout the cluster.
+
+Test
+[root@SRV-PCS1 ~]# gfs2_grow -T /mnt/gfs2
+
+[root@SRV-PCS1 ~]# gfs2_grow /mnt/gfs2
+FS: Mount point:             /mnt/gfs2
+FS: Device:                  /dev/mapper/shared_vg-shared_lv1
+FS: Size:                    1310719 (0x13ffff)
+DEV: Length:                 1572864 (0x180000)
+The file system will grow by 1024MB.
+gfs2_grow complete.
+Run the df command on all nodes to check that the new space is now available in the file system. Note that it may take up to 30 seconds for the the df command on all nodes to show the same file system size
+
+[root@SRV-PCS1 ~]# df -h /mnt/gfs2
+Filesystem                        Size  Used Avail Use% Mounted on
+/dev/mapper/shared_vg-shared_lv1  6.0G  4.5G  1.6G  75% /mnt/gfs2
+
+
+#Adding journals to a GFS2 file system
+[root@SRV-PCS1 ~]# gfs2_edit -p jindex /dev/mapper/vg_share1-lv_share3 |grep journal
+   3/3 [fc7745eb] 1/18 (0x1/0x12) +0: File    journal0
+[root@SRV-PCS1 ~]# gfs2_jadd -j2 /data/share3/
+
+
+
+#GFS2 FILE SYSTEM REPAIR
+[root@SRV-PCS1 ~]# lvs
+  LV        VG        Attr       LSize  Pool   Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  pool00    rhel      twi-aotz-- 13.16g               25.99  21.02
+  root      rhel      Vwi-aotz-- 13.16g pool00        25.99
+  swap      rhel      -wi-ao----  2.00g
+  lv_share1 vg_share1 -wi-ao----  6.00g
+  lv_share2 vg_share1 -wi-ao----  5.00g
+  lv_share3 vg_share1 -wi-ao----  5.00g
+  lv_share4 vg_share1 -wi-ao----  1.00g
+[root@SRV-PCS1 ~]# pcs resource
+  * Clone Set: locking-clone [locking]:
+    * Started: [ srv-pcs1.systemtest.local srv-pcs2.systemtest.local srv-pcs3.systemtest.local ]
+  * Clone Set: vg_share1-clone [vg_share1]:
+    * Started: [ srv-pcs1.systemtest.local srv-pcs2.systemtest.local srv-pcs3.systemtest.local ]
+  * Clone Set: web1-clone [web1]:
+    * Started: [ srv-pcs1.systemtest.local srv-pcs2.systemtest.local srv-pcs3.systemtest.local ]
+  * vip1        (ocf::heartbeat:IPaddr2):        Started srv-pcs2.systemtest.local
+[root@SRV-PCS1 ~]# pcs resource disable sharedfs4
+[root@SRV-PCS1 ~]# lvs
+  LV        VG        Attr       LSize  Pool   Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  pool00    rhel      twi-aotz-- 13.16g               25.99  21.02
+  root      rhel      Vwi-aotz-- 13.16g pool00        25.99
+  swap      rhel      -wi-ao----  2.00g
+  lv_share1 vg_share1 -wi-ao----  6.00g
+  lv_share2 vg_share1 -wi-ao----  5.00g
+  lv_share3 vg_share1 -wi-ao----  5.00g
+  lv_share4 vg_share1 -wi-a-----  1.00g
+[root@SRV-PCS1 ~]# pcs resource
+  * Clone Set: locking-clone [locking]:
+    * Started: [ srv-pcs1.systemtest.local srv-pcs2.systemtest.local srv-pcs3.systemtest.local ]
+  * Clone Set: vg_share1-clone [vg_share1]:
+    * Resource Group: vg_share1:0:
+      * gfs2-share-lv1  (ocf::heartbeat:LVM-activate):   Started srv-pcs3.systemtest.local
+      * sharedfs1       (ocf::heartbeat:Filesystem):     Started srv-pcs3.systemtest.local
+      * gfs2-share-lv2  (ocf::heartbeat:LVM-activate):   Started srv-pcs3.systemtest.local
+      * sharedfs2       (ocf::heartbeat:Filesystem):     Started srv-pcs3.systemtest.local
+      * gfs2-share-lv3  (ocf::heartbeat:LVM-activate):   Started srv-pcs3.systemtest.local
+      * sharedfs3       (ocf::heartbeat:Filesystem):     Started srv-pcs3.systemtest.local
+      * gfs2-share-lv4  (ocf::heartbeat:LVM-activate):   Started srv-pcs3.systemtest.local
+      * sharedfs4       (ocf::heartbeat:Filesystem):     Stopped (disabled)
+    * Resource Group: vg_share1:1:
+      * gfs2-share-lv1  (ocf::heartbeat:LVM-activate):   Started srv-pcs1.systemtest.local
+      * sharedfs1       (ocf::heartbeat:Filesystem):     Started srv-pcs1.systemtest.local
+      * gfs2-share-lv2  (ocf::heartbeat:LVM-activate):   Started srv-pcs1.systemtest.local
+      * sharedfs2       (ocf::heartbeat:Filesystem):     Started srv-pcs1.systemtest.local
+      * gfs2-share-lv3  (ocf::heartbeat:LVM-activate):   Started srv-pcs1.systemtest.local
+      * sharedfs3       (ocf::heartbeat:Filesystem):     Started srv-pcs1.systemtest.local
+      * gfs2-share-lv4  (ocf::heartbeat:LVM-activate):   Started srv-pcs1.systemtest.local
+      * sharedfs4       (ocf::heartbeat:Filesystem):     Stopped (disabled)
+    * Resource Group: vg_share1:2:
+      * gfs2-share-lv1  (ocf::heartbeat:LVM-activate):   Started srv-pcs2.systemtest.local
+      * sharedfs1       (ocf::heartbeat:Filesystem):     Started srv-pcs2.systemtest.local
+      * gfs2-share-lv2  (ocf::heartbeat:LVM-activate):   Started srv-pcs2.systemtest.local
+      * sharedfs2       (ocf::heartbeat:Filesystem):     Started srv-pcs2.systemtest.local
+      * gfs2-share-lv3  (ocf::heartbeat:LVM-activate):   Started srv-pcs2.systemtest.local
+      * sharedfs3       (ocf::heartbeat:Filesystem):     Started srv-pcs2.systemtest.local
+      * gfs2-share-lv4  (ocf::heartbeat:LVM-activate):   Started srv-pcs2.systemtest.local
+      * sharedfs4       (ocf::heartbeat:Filesystem):     Stopped (disabled)
+  * Clone Set: web1-clone [web1]:
+    * Stopped: [ srv-pcs1.systemtest.local srv-pcs2.systemtest.local srv-pcs3.systemtest.local ]
+  * vip1        (ocf::heartbeat:IPaddr2):        Started srv-pcs2.systemtest.local
+[root@SRV-PCS1 ~]#
+[root@SRV-PCS1 ~]# fsck.gfs2 -y /dev/vg_share1/lv_share4
+Initializing fsck
+Validating resource group index.
+Level 1 resource group check: Checking if all rgrp and rindex values are good.
+(level 1 passed)
+Starting pass1
+Reconciling bitmaps.
+reconcile_bitmaps completed in 0.001s
+pass1 completed in 0.414s
+Starting pass1b
+pass1b completed in 0.000s
+Starting pass2
+pass2 completed in 0.046s
+Starting pass3
+pass3 completed in 0.000s
+Starting pass4
+pass4 completed in 0.000s
+Starting check_statfs
+check_statfs completed in 0.000s
+fsck.gfs2 complete
+[root@SRV-PCS1 ~]#
+[root@SRV-PCS1 ~]# pcs resource enable sharedfs4
+[root@SRV-PCS1 ~]# lvs
+  LV        VG        Attr       LSize  Pool   Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  pool00    rhel      twi-aotz-- 13.16g               25.99  21.02
+  root      rhel      Vwi-aotz-- 13.16g pool00        25.99
+  swap      rhel      -wi-ao----  2.00g
+  lv_share1 vg_share1 -wi-ao----  6.00g
+  lv_share2 vg_share1 -wi-ao----  5.00g
+  lv_share3 vg_share1 -wi-ao----  5.00g
+  lv_share4 vg_share1 -wi-ao----  1.00g
+[root@SRV-PCS1 ~]#

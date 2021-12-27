@@ -1,0 +1,466 @@
+ subscription-manager repos --enable=rhel-8-for-x86_64-highavailability-rpms
+
+dnf install -y pcs fence-agents-all pcp-zeroconf
+
+firewall-cmd --permanent --add-service=high-availability
+firewall-cmd --add-service=high-availability
+firewall-cmd --reload
+
+passwd hacluster
+
+systemctl start pcsd
+
+systemctl enable pcsd
+
+pcs host auth srv-pcs1.systemtest.local srv-pcs2.systemtest.local
+
+pcs cluster setup hbc_cluster_haproxy --start srv-pcs1.systemtest.local srv-pcs2.systemtest.local
+
+pcs cluster enable --all
+
+
+dnf install -y device-mapper-multipath iscsi-initiator-utils
+#setting iscsi authen
+vim /etc/iscsi/iscsid.conf
+node.session.auth.authmethod = CHAP
+node.session.auth.username = haproxy
+node.session.auth.password = 123@123a
+
+#connect iscsi
+iscsiadm -m discovery -t st -p 192.168.1.252
+192.168.1.252:3260,1 iqn.2006-01.com.openfiler:tsn.088fffd06437
+
+iscsiadm -m node -T iqn.2006-01.com.openfiler:tsn.088fffd06437 -p 192.168.1.252 -l
+Logging in to [iface: default, target: iqn.2006-01.com.openfiler:tsn.088fffd06437, portal: 192.168.1.252,3260]
+Login to [iface: default, target: iqn.2006-01.com.openfiler:tsn.088fffd06437, portal: 192.168.1.252,3260] successful.
+
+
+[root@srv-pcs1 ~]# dnf install gfs2-utils
+Updating Subscription Management repositories.
+Last metadata expiration check: 0:52:59 ago on Fri 10 Dec 2021 10:54:14 PM +07.
+Dependencies resolved.
+=============================================================================================================================================================================================
+ Package                                  Architecture                        Version                                       Repository                                                  Size
+=============================================================================================================================================================================================
+Installing:
+ gfs2-utils                               x86_64                              3.2.0-11.el8                                  rhel-8-for-x86_64-baseos-rpms                              330 k
+Installing dependencies:
+ dlm-lib                                  x86_64                              4.1.0-1.el8                                   rhel-8-for-x86_64-baseos-rpms                               34 k
+ lvm2-lockd                               x86_64                              8:2.03.12-10.el8                              rhel-8-for-x86_64-baseos-rpms                              402 k
+ sanlock-lib                              x86_64                              3.8.4-1.el8                                   rhel-8-for-x86_64-baseos-rpms                               74 k
+
+Transaction Summary
+=============================================================================================================================================================================================
+Install  4 Packages
+
+Total download size: 841 k
+Installed size: 1.7 M
+Is this ok [y/N]: y
+Downloading Packages:
+(1/4): dlm-lib-4.1.0-1.el8.x86_64.rpm                                                                                                                         68 kB/s |  34 kB     00:00
+(2/4): lvm2-lockd-2.03.12-10.el8.x86_64.rpm                                                                                                                  698 kB/s | 402 kB     00:00
+(3/4): gfs2-utils-3.2.0-11.el8.x86_64.rpm                                                                                                                    845 kB/s | 330 kB     00:00
+(4/4): sanlock-lib-3.8.4-1.el8.x86_64.rpm                                                                                                                     78 kB/s |  74 kB     00:00
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Total                                                                                                                                                        881 kB/s | 841 kB     00:00
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                                                                                                     1/1
+  Installing       : sanlock-lib-3.8.4-1.el8.x86_64                                                                                                                                      1/4
+  Installing       : dlm-lib-4.1.0-1.el8.x86_64                                                                                                                                          2/4
+  Running scriptlet: dlm-lib-4.1.0-1.el8.x86_64                                                                                                                                          2/4
+  Installing       : lvm2-lockd-8:2.03.12-10.el8.x86_64                                                                                                                                  3/4
+  Running scriptlet: lvm2-lockd-8:2.03.12-10.el8.x86_64                                                                                                                                  3/4
+  Installing       : gfs2-utils-3.2.0-11.el8.x86_64                                                                                                                                      4/4
+  Running scriptlet: gfs2-utils-3.2.0-11.el8.x86_64                                                                                                                                      4/4
+  Verifying        : dlm-lib-4.1.0-1.el8.x86_64                                                                                                                                          1/4
+  Verifying        : lvm2-lockd-8:2.03.12-10.el8.x86_64                                                                                                                                  2/4
+  Verifying        : sanlock-lib-3.8.4-1.el8.x86_64                                                                                                                                      3/4
+  Verifying        : gfs2-utils-3.2.0-11.el8.x86_64                                                                                                                                      4/4
+Installed products updated.
+
+Installed:
+  dlm-lib-4.1.0-1.el8.x86_64                 gfs2-utils-3.2.0-11.el8.x86_64                 lvm2-lockd-8:2.03.12-10.el8.x86_64                 sanlock-lib-3.8.4-1.el8.x86_64
+
+Complete!
+[root@srv-pcs1 ~]# mkfs.
+mkfs.cramfs  mkfs.ext2    mkfs.ext3    mkfs.ext4    mkfs.gfs2    mkfs.minix   mkfs.xfs
+[root@srv-pcs1 ~]# mkfs.gfs2 -j2 -p lock_dlm -t vol1_haproxy:gfs2-share /dev/
+Display all 158 possibilities? (y or n)
+[root@srv-pcs1 ~]# mkfs.gfs2 -j2 -p lock_dlm -t vol1_haproxy:gfs2-share /dev/vg
+vga_arbiter      vg_vol1_haproxy/
+[root@srv-pcs1 ~]# mkfs.gfs2 -j2 -p lock_dlm -t vol1_haproxy:gfs2-share /dev/vg_vol1_haproxy/lv_vol1_haproxy
+/dev/vg_vol1_haproxy/lv_vol1_haproxy is a symbolic link to /dev/dm-2
+This will destroy any data on /dev/dm-2
+Are you sure you want to proceed? [y/n] y
+Discarding device contents (may take a while on large devices): Done
+Adding journals: Done
+Building resource groups: Done
+Creating quota file: Done
+Writing superblock and syncing: Done
+Device:                    /dev/vg_vol1_haproxy/lv_vol1_haproxy
+Block size:                4096
+Device size:               20.00 GB (5241856 blocks)
+Filesystem size:           20.00 GB (5241852 blocks)
+Journals:                  2
+Journal size:              64MB
+Resource groups:           82
+Locking protocol:          "lock_dlm"
+Lock table:                "vol1_haproxy:gfs2-share"
+UUID:                      d3e4f4bf-dc49-405a-aedf-58940ae39501
+
+
+###Add new node
+#On node in cluster
+pcs cluster auth  -u hacluster -p 123@123a srv-pcs3.systemtest.local
+pcs cluster node add srv-pcs3.systemtest.local
+
+#On new node
+pcs cluster auth  -u hacluster -p 123@123a 
+
+
+
+
+###Fence
+#On new node
+pcs stonith create srv-pcs3_fence fence_xvm port="srv-pcs3.systemtest.local" pcmk_host_list="srv-pcs3.systemtest.local"
+pcs stonith show
+
+#On node in cluster
+pcs stonith fence srv-pcs3.systemtest.local
+
+
+###Remove node
+pcs cluster node remove srv-pcs3.systemtest.local
+pcs stonith delete srv-pcs3_fence
+
+###Standby / unstandby
+pcs cluster standby srv-pcs3.systemtest.local
+pcs cluster unstandby srv-pcs3.systemtest.local
+
+
+
+###quorum
+corosync-quorumtool
+
+
+###WaitForAll ( requirment all node start together, if no cluster go to activity blocked)
+vim /etc/corosync/corosync.conf
+quorum {
+  provider: corosync_votequorum
+  wait_for_all: 1
+}
+
+pcs cluster stop --all
+pcs cluster sync
+pcs cluster start --all
+
+
+###auto_tie_breaker
+
+
+###nfs for resource
+pcs resource create newfs Filesystem device=nfs.systemtest.xyz:/path directory=/data fstype=nfs option=ro --group mygroup
+pcs resource show
+
+
+###ipaddress for resource
+pcs resource create webip IPaddr2 ip=192.168.1.200 nic=eth0:1 cidr_netmask=24 --group mygroup
+pcs resource show
+
+###service for resource
+pcs resource create websrv apache --group mygroup
+
+
+#move resource to specifyc node
+pcs resource move mygroup srv-pcs3.systemtest.local
+
+
+###ban node -> use this if it is last node
+pcs resource ban mygroup srv-pcs3.systemtest.local
+pcs constraint list
+pcs resource clear  mygroup srv-pcs3.systemtest.local
+
+
+###manage resource
+pcs resource show
+pcs resource disable mygroup
+pcs resource enable mygroup
+
+
+###Log file
+vim /etc/corosync/corosync.conf
+logging {
+  to_logfile: yes
+  logfile: /var/log/cluster/corosync.log
+  to_syslog: yes
+  #debug: on 
+}
+
+vim /etc/sysconfig/pacemaker
+#PCMK_debug=yes
+PCMK_logfile=/var/log/pacemaker.log
+
+
+###Troubleshoting resource failures
+pcs resource failcount show mygroup
+pcs resource debug-start mygroup --full | less
+
+pcs resource show mygroup
+pcs resource update mygroup configfile=/etc/httpd/conf/httpd.conf
+
+
+
+###Constraint
+Order: order for failback
+Location: resource A and B same host
+Colocation: specify that two resource must or must not run the same node
+
+#
+pcs constraint
+pcs contraint list --full
+
+crm_simulate -sL
+
+#order
+pcs resource defaults
+pcs resource default resource-stickness=500 #Priority để tránh failback
+pcs property set default-resource-stickiness="INFINITY"
+pcs constraint order start dlm-clone then clvmd-clone
+pcs property list 
+
+
+#location
+pcs constraint location mygroup prefers srv-pcs3.systemtest.local
+pcs constraint location mygroup prefers srv-pcs3.systemtest.local=200 #Set priority
+pcs constraint remove location-mygroup-srv-pcs3.systemtest.local-INFINITY
+pcs constraint location mygroup avoids srv-pcs3.systemtest.local #Node use this node for resource
+
+#colocation
+pcs constraint colocation add resource_a with resource_b #must same node
+pcs constraint colocation add resource_a with resource_b -INIFINITY #must not same node
+
+#LVM_HA
+vim /etc/lvm/lvm.conf
+locking_type = 1
+volume_list = ["rhel"]
+
+
+dracut -H -f /boot/initramfs-$ (uname -r) .img $(uname -r)
+reboot
+
+pcs resource create halvm LMV volgrpname=clustervg exclusive=true --group halvm
+pcs resource create xfsfs Filesystem device="/dev/clustervg/clusterlv" directory="/mnt1" fstype="xfs"  --group halvm
+
+
+
+#ResilientStorage
+yum install -y dlm lvm2-cluster
+vim /etc/lvm/lvm.conf
+locking_type=3
+use_lvmetad =0
+
+lvmconf --enable-cluster
+systemctl stop lvm2-lvmetad
+
+#
+pcs resource create dlm controld op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+pcs resource create clvmd clvm op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+pcs constraint order start dlm-clone then clvmd-clone
+pcs constraint colocation add clvmd-clone with dlm-clone
+
+#
+/usr/lib/udev/scsi_id -g -u /dev/sda
+
+#GFS2
+#disable selinux
+yum install -y gfs2-utils lvm2-cluster
+
+pcs property set no-quorum-policy=freeze
+pcs resouce create dlm ocf:pacemaker:controld op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+
+lvmconf --enable-cluster
+
+systemctl stop lvm2-lvmetad
+
+pcs resource create clvmd ocf:heartbeat:clvm op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+pcs constraint order start dlm-clone then clvmd-clone
+pcs constaint colocation add clvmd-clone with dlm-clone
+
+
+pvcreate /dev/sda1
+vgcreate -Ay -cy clustervg /dev/sda1
+lvcreate -L 1G -n gfsdata clustvg
+
+mkfs.gfs2 -t cluster0:gfsdata -j3 /dev/clustvg/gfsdata
+y
+
+mkdir /gfsfs
+mount -t gfs2 /dev/clustvg/gfsdata /gfsfs
+
+
+lgs
+lvextend -L +200M /dev/mapper/clustvg/gfsdata
+gfs2_grow -T /gfsfs #Test mode
+gfs2_grow  /gfsfs #Change
+
+#resource gfs2
+pcs resource create clustfs Filesystem device"/dev/clustvg/gfsdata" directory="/gfsfs" fstype="gfs2" op monitor interval=10s on-fail=fence clone interleave=true
+pcs constraint order start clvmd-clone then clustfs-clone
+pcs colocation add clustfs-clone with clvmd-clone
+
+
+
+
+###
+pcs -f stonith_cfg stonith create my_vcentre-fence fence_vmware_soap \
+ ipaddr=srv-vcenter.systemtest.xyz ipport=443 ssl_insecure=1 inet4_only=1 \
+ login="administrator@systemtest.xyz" passwd="123@123aA" \
+ action=reboot \
+ pcmk_host_map="pcmk01-cr:vm-pcmk01;pcmk02-cr:vm-pcmk02;pcmk03-cr:vm-pcmk03" \
+ pcmk_host_check=static-list \
+ pcmk_host_list="vm-pcmk01,vm-pcmk02,vm-pcmk03" \
+ power_wait=3 op monitor interval=90s
+
+
+fence_vmware_soap --ip srv-vcenter.systemtest.xyz --ssl --ssl-insecure --action list --username="administrator@systemtest.xyz" --password="123@123aA" | grep SRV
+
+fence_vmware_rest -a <vCenter IP address> -l <vcenter_username> -p <vcenter_password> --ssl-insecure -z -o list | egrep "(node1-vm|node2-vm)"
+fence_vmware_rest -a srv-vcenter.systemtest.xyz -l <vcenter_username> -p <vcenter_password> --ssl-insecure -z -o status -n node1-vm
+
+pcs -f stonith_cfg stonith create VMware-Fence fence_vmware_soap \
+ipaddr=srv-vcenter.systemtest.xyz ipport=443 ssl_insecure=1 inet4_only=1 \
+login="administrator@systemtest.xyz" passwd="123@123aA" action=reboot \
+pcmk_host_map="SRV-PCS1:1;SRV-PCS2:2;SRV-PCS3:3" pcmk_host_check=static-list pcmk_host_list="SRV-PCS1,SRV-PCS2,SRV-PCS3" \
+power_wait=3 op monitor interval=60s
+
+
+pcs -f stonith_cfg stonith create VMware-Fence fence_vmware_soap \
+ip=srv-vcenter.systemtest.xyz ipport=443 ssl_insecure=1 \
+login="administrator@systemtest.xyz" passwd="123@123aA" pcmk_reboot_action=1 \
+pcmk_host_map="SRV-PCS1:1;SRV-PCS2:2;SRV-PCS3:3" pcmk_host_check=static-list pcmk_host_list="SRV-PCS1,SRV-PCS2,SRV-PCS3" \
+power_wait=3 op monitor interval=60s
+
+pcs -f stonith_cfg property set stonith-enabled=true
+pcs -f stonith_cfg property set stonith-action=reboot
+pcs -f stonith_cfg property set stonith-timeout=120s
+pcs cluster cib-push stonith_cfg
+
+
+
+
+
+###
+dnf install fence-agents-vmware-rest
+fence_vmware_rest -a srv-vcenter.systemtest.xyz -l administrator@systemtest.xyz -p "123@123aA" --ssl-insecure -z -o list | grep SRV
+fence_vmware_rest -a srv-vcenter.systemtest.xyz -l administrator@systemtest.xyz -p "123@123aA" --ssl-insecure -z -o status -n SRV-PCS1
+ 
+cat /etc/corosync/corosync.conf
+
+pcs stonith create vmware-fence-rest fence_vmware_rest pcmk_host_map="srv-pcs1.systemtest.local:SRV-PCS1;srv-pcs2.systemtest.local:SRV-PCS2;srv-pcs3.systemtest.local:SRV-PCS3" ipaddr=srv-vcenter.systemtest.xyz ssl=1 login=administrator@systemtest.xyz passwd="123@123aA" ssl_insecure=1 power_wait=3 op monitor interval=60s 
+
+ pcs stonith fence <node_name>
+ stonith_admin --reboot pcmk03-cr
+
+
+
+ #iscsi
+ [ALL]# yum install device-mapper-multipath iscsi-initiator-utils
+ [ALL]# cat << EOL > /etc/multipath.conf
+defaults {
+        user_friendly_names yes
+        find_multipaths yes
+}
+blacklist {
+        devnode "sda"
+        devnode "^(ram|raw|loop|fd|md|dm-|sr|scd|st)[0-9]*"
+        devnode "^hd[a-z]"
+        devnode "^cciss!c[0-9]d[0-9].*"
+}
+devices {
+        device {
+                vendor               "NETAPP"
+                product              "NewFiler"
+                path_grouping_policy multibus
+                path_selector        "round-robin 0"
+                failback             immediate
+        }
+}
+EOL
+
+[ALL]# systemctl enable multipathd.service
+[ALL]# systemctl start multipathd
+
+
+
+
+#setting iscsi authen
+vim /etc/iscsi/iscsid.conf
+node.session.auth.authmethod = CHAP
+node.session.auth.username = haproxy
+node.session.auth.password = 123@123a
+
+[ALL]# systemctl enable iscsi.service
+[ALL]# systemctl start iscsi
+
+#connect iscsi
+iscsiadm -m discovery -t st -p 192.168.1.252
+192.168.1.252:3260,1 iqn.2006-01.com.openfiler:tsn.088fffd06437
+
+iscsiadm -m node -T iqn.2006-01.com.openfiler:tsn.088fffd06437 -p 192.168.1.252 -l
+Logging in to [iface: default, target: iqn.2006-01.com.openfiler:tsn.088fffd06437, portal: 192.168.1.252,3260]
+Login to [iface: default, target: iqn.2006-01.com.openfiler:tsn.088fffd06437, portal: 192.168.1.252,3260] successfu
+
+
+
+
+
+
+95  dnf install gfs2-utils -y
+   96  subscription-manager repos --enable=rhel-8-for-x86_64-resilientstorage-rpms
+   97   yum install lvm2-lockd gfs2-utils dlm
+   98  pcs property set no-quorum-policy=freeze
+   99  pcs resource create dlm --group locking ocf:pacemaker:controld op monitor interval=30s on-fail=fence
+  100  pcs resource clone locking interleave=true
+  101  pcs resource create lvmlockd --group locking ocf:heartbeat:lvmlockd op monitor interval=30s on-fail=fence
+  102   pcs status --full
+  103  df -h
+  104  clear
+  105  lsblk
+  106  iscsiadm -m discovery -t st -p 192.168.1.252
+  107  vgcreate --shared vg_share1 /dev/sdb
+  108  lvcreate --activate sy -L5G -n lv_share1 vg_share1
+  109  lvcreate --activate sy -L5G -n lv_share2 vg_share1
+  110  mkfs.gfs2 -j2 -p lock_dlm -t pcs-cluster:gfs2-share1 /dev/vg_share1/lv_share1
+  111  mkfs.gfs2 -j2 -p lock_dlm -t pcs-cluster:gfs2-share2 /dev/vg_share1/lv_share2
+
+  116  pcs resource create gfs2-share-lv1 --group vg_share1 ocf:heartbeat:LVM-activate lvname=lv_share1 vgname=vg_share1 activation_mode=shared vg_access_mode=lvmlockd
+  117  pcs resource create gfs2-share-lv2 --group vg_share1 ocf:heartbeat:LVM-activate lvname=lv_share2 vgname=vg_share1 activation_mode=shared vg_access_mode=lvmlockd
+  118  pcs resource clone vg_share1 interleave=true
+  119  pcs resource show
+  120  pcs resource status
+  121  clear
+  122  pcs resource status
+  123  pcs constraint order start locking-clone then vg_share1-clone
+  124  pcs constraint colocation add vg_share1-clone with locking-clone
+  125  lvs
+  126  mkdir /data
+  164  pcs resource create sharedfs1 --group vg_share1 ocf:heartbeat:Filesystem device="/dev/vg_share1/lv_share1" directory="/data/share1" fstype="gfs2" options=noatime op monitor interval=30s on-fail=fence
+  166  pcs resource create sharedfs2 --group vg_share1 ocf:heartbeat:Filesystem device="/dev/vg_share1/lv_share2" directory="/data/share2" fstype="gfs2" options=noatime op monitor interval=10s on-fail=fence
+  167  mount | grep gfs2
+  168  ls
+  169  clear
+  170  ls
+  171  rm -rf share2/
+  172  cd share1/
+  173  ls
+  174  cat test
+  175  clear
+  176  history
+  177  history | less
+
+
+lvs -a -o +devices

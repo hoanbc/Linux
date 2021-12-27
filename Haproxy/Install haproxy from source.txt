@@ -16,7 +16,7 @@ tar xzf haproxy-$VER.tar.gz && rm -f haproxy*.tar.gz;
 cd haproxy-$VER
 # With vCPU, use CPU=generic
 cecho "Configuring and Making HAPROXY" 
-make TARGET=linux-glibc CPU=native USE_OPENSSL=1 USE_ZLIB=1 USE_PCRE2=1 USE_PCRE2_JIT=1 USE_SYSTEMD=1 USE_PCRE=1 USE_LIBCRYPT=1 USE_LINUX_TPROXY=1 SSL_LIB=/usr/local/lib64/ SSL_INC=/usr/include/openssl/
+make TARGET=linux-glibc CPU=native USE_OPENSSL=1 USE_ZLIB=1 USE_SYSTEMD=1 USE_PCRE=1 USE_LIBCRYPT=1 USE_LINUX_TPROXY=1 SSL_LIB=/usr/local/lib64/ SSL_INC=/usr/include/openssl/
 cecho "Installing HAPROXY" 
 make install
 cecho "Adding HAProxy User" 

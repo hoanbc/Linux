@@ -1,0 +1,26 @@
+dnf install gcc perl openssl-devel pcre-devel zlib-devel systemd-devel wget -y
+wget http://www.haproxy.org/download/2.4/src/haproxy-2.4.8.tar.gz
+tar -xzvf haproxy-2.4.8.tar.gz
+cd haproxy-2.4.8
+make TARGET=linux-glibc CPU=native USE_OPENSSL=1 USE_ZLIB=1 USE_SYSTEMD=1 USE_PCRE=1 USE_LIBCRYPT=1 USE_LINUX_TPROXY=1 SSL_LIB=/usr/local/lib64/ SSL_INC=/usr/include/openssl/
+id -u haproxy &>/dev/null || useradd -s /usr/sbin/nologin -r haproxy
+make install
+sudo mkdir -p /etc/haproxy
+sudo mkdir -p /var/lib/haproxy
+sudo touch /var/lib/haproxy/stats
+sudo ln -s /usr/local/sbin/haproxy /usr/sbin/haproxy
+cp examples/haproxy.init /etc/init.d/haproxy
+sudo chmod 755 /etc/init.d/haproxy
+sudo systemctl daemon-reload
+systemctl enable haproxy
+chown -R devops:haproxy /etc/haproxy
+touch /etc/haproxy/haproxy.cfg
+
+vim /etc/sysctl.conf
+net.ipv4.ip_forward = 1
+net.ipv4.ip_nonlocal_bind = 1
+sysctl -p
+
+
+  148  systemctl enable haproxy
+  149  systemctl start haproxy

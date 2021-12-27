@@ -1,0 +1,5 @@
+Cảnh báo ALERT /dev/mapper/UBUSRV01--vg-root does not exitst. Dropping to a shell!
+(initranfs mode)
+
+Fix:
+blkid -> Tìm UUID của root -> khởi động lại -> nhấn E -> đến dòng linux -> sửa root=UUID=aaaaaa (root) -> crtl-x
