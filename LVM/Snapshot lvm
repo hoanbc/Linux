@@ -1,0 +1,52 @@
+[root@srv-rhel-upgrade ~]# vgs
+  VG      #PV #LV #SN Attr   VSize   VFree
+  rhel      1   2   0 wz--n- <49.00g     0
+  vg-test   1   1   0 wz--n- <10.00g <8.00g
+
+[root@srv-rhel-upgrade ~]# ls -la /data/
+total 28
+drwxr-xr-x   3 root root  4096 Jan  9 16:33 .
+dr-xr-xr-x. 18 root root   256 Jan  9 16:31 ..
+-rw-r--r--   1 root root    10 Jan  9 16:33 abc11.txt
+-rw-r--r--   1 root root     8 Jan  9 16:32 abc1.txt
+drwx------   2 root root 16384 Jan  9 16:31 lost+found
+
+[root@srv-rhel-upgrade ~]# du -s /data/
+28      /data/
+
+[root@srv-rhel-upgrade ~]# lvcreate -s -L 2G -n lvol0-snapshot1 /dev/vg-test/lvol0
+  Logical volume "lvol0-snapshot1" created.
+
+[root@srv-rhel-upgrade ~]# rm -rf /data/*
+
+[root@srv-rhel-upgrade ~]# touch /data/test1
+
+[root@srv-rhel-upgrade ~]# lvconvert --merge /dev/vg-test/lvol0-snapshot1
+  Delaying merge since origin is open.
+  Merging of snapshot vg-test/lvol0-snapshot1 will occur on next activation of vg-test/lvol0.
+
+[root@srv-rhel-upgrade ~]# ls -la /data/
+total 8
+drwxr-xr-x   2 root root 4096 Jan  9 17:21 .
+dr-xr-xr-x. 18 root root  256 Jan  9 16:31 ..
+-rw-r--r--   1 root root    5 Jan  9 17:21 test1
+
+[root@srv-rhel-upgrade ~]# umount /data
+
+[root@srv-rhel-upgrade ~]# lvchange -an /dev/vg-test/lvol0
+
+[root@srv-rhel-upgrade ~]# lvchange -ay /dev/vg-test/lvol0
+
+[root@srv-rhel-upgrade ~]# mount /dev/vg-test/lvol0 /data
+mount: /data: /dev/mapper/vg--test-lvol0 already mounted on /data.
+
+[root@srv-rhel-upgrade ~]# du -s /data
+28      /data
+
+[root@srv-rhel-upgrade ~]# ls -la /data
+total 28
+drwxr-xr-x   3 root root  4096 Jan  9 16:33 .
+dr-xr-xr-x. 18 root root   256 Jan  9 16:31 ..
+-rw-r--r--   1 root root    10 Jan  9 16:33 abc11.txt
+-rw-r--r--   1 root root     8 Jan  9 16:32 abc1.txt
+drwx------   2 root root 16384 Jan  9 16:31 lost+found

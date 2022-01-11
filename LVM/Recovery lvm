@@ -1,0 +1,58 @@
+###See log archive.
+[root@srv-rhel-upgrade ~]# vgcfgrestore --list vg-test
+  File:         /etc/lvm/archive/vg-test_00001-284773006.vg
+  VG name:      vg-test
+  Description:  Created *before* executing 'lvcreate -n lvol0 -L 2097152K -y vg-test'
+  Backup Time:  Sun Jan  9 16:31:00 2022
+
+  File:         /etc/lvm/archive/vg-test_00002-273810670.vg
+  VG name:      vg-test
+  Description:  Created *before* executing 'lvremove /dev/vg-test/lvol0'
+  Backup Time:  Sun Jan  9 16:34:08 2022
+
+  File:         /etc/lvm/archive/vg-test_00003-105354531.vg
+  VG name:      vg-test
+  Description:  Created *before* executing 'vgs --noheadings --nosuffix --nameprefixes --unquoted --units=b -o name,uuid,size,free,extent_size,extent_count,free_count,pv_count'
+  Backup Time:  Sun Jan  9 16:34:08 2022
+
+###See event "Description:  Created *before* executing 'lvremove /dev/vg-test/lvol0'"
+[root@srv-rhel-upgrade ~]# vgcfgrestore -f /etc/lvm/archive/vg-test_00002-273810670.vg vg-test
+  Restored volume group vg-test.
+
+[root@srv-rhel-upgrade ~]# lvs
+  LV    VG      Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  root  rhel    -wi-ao---- <47.00g
+  swap  rhel    -wi-ao----   2.00g
+  lvol0 vg-test -wi-------   2.00g
+
+[root@srv-rhel-upgrade ~]# lvscan
+  inactive          '/dev/vg-test/lvol0' [2.00 GiB] inherit
+  ACTIVE            '/dev/rhel/swap' [2.00 GiB] inherit
+  ACTIVE            '/dev/rhel/root' [<47.00 GiB] inherit
+
+[root@srv-rhel-upgrade ~]# lvchange -ay /dev/vg-test/lvol0
+
+[root@srv-rhel-upgrade ~]# lvscan
+  ACTIVE            '/dev/vg-test/lvol0' [2.00 GiB] inherit
+  ACTIVE            '/dev/rhel/swap' [2.00 GiB] inherit
+  ACTIVE            '/dev/rhel/root' [<47.00 GiB] inherit
+
+[root@srv-rhel-upgrade ~]# lvs
+  LV    VG      Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  root  rhel    -wi-ao---- <47.00g
+  swap  rhel    -wi-ao----   2.00g
+  lvol0 vg-test -wi-ao----   2.00g
+
+[root@srv-rhel-upgrade ~]# mount /dev/mapper/vg--test-lvol0 /data/
+mount: /data: /dev/mapper/vg--test-lvol0 already mounted on /data.
+
+[root@srv-rhel-upgrade ~]# ls -ltr /data/
+total 24
+drwx------ 2 root root 16384 Jan  9 16:31 lost+found
+-rw-r--r-- 1 root root     8 Jan  9 16:32 abc1.txt
+-rw-r--r-- 1 root root    10 Jan  9 16:33 abc11.txt
+
+[root@srv-rhel-upgrade ~]# cat /data/abc1.txt
+1
+1
+1
