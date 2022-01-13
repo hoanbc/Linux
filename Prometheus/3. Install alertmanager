@@ -1,0 +1,69 @@
+###Download and unzip package
+wget https://github.com/prometheus/alertmanager/releases/download/v0.23.0/alertmanager-0.23.0.linux-amd64.tar.gz
+tar -xzf alertmanager-0.23.0.linux-amd64.tar.gz
+
+###Create user prometheus
+sudo useradd -M -r -s /bin/false alertmanager
+
+###Create folder and copy file to folder
+sudo mkdir -p /etc/alertmanager
+sudo mkdir -p /var/lib/alertmanager
+
+cp /alertmanager-0.23.0.linux-amd64/alertmanager /usr/local/bin/
+cp /alertmanager-0.23.0.linux-amd64/alertmanager.yml /etc/alertmanager/
+
+sudo chown -R alertmanager:alertmanager /usr/local/bin/alertmanager
+sudo chown -R alertmanager:alertmanager /var/lib/alertmanager
+sudo chown -R alertmanager:alertmanager /etc/alertmanager/
+
+###Enable https for alertmanager
+sudo vi /etc/alertmanager/web-config.yml 
+tls_server_config:
+  cert_file: /etc/prometheus/certs/fullchain.pem
+  key_file: /etc/prometheus/certs/privkey.pem
+basic_auth_users:
+  systemtest: $2a$12$fWxnj99iAf63r7OrX/SuMeDzW7ndK2x8LNtalgYYuEEPfsswIr4a2
+
+###Create service for alertmanager
+sudo vi /etc/systemd/system/alertmanager.service
+[Unit]
+Description=Alertmanager
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=alertmanager
+Group=alertmanager
+Type=simple
+ExecStart=/usr/local/bin/alertmanager \
+--config.file=/etc/alertmanager/alertmanager.yml \
+--storage.path=/var/lib/alertmanager \
+--web.config.file=/etc/alertmanager/web-config.yml \
+--web.external-url=https://prometheus.systemtest.xyz
+Restart=always
+
+[Install]
+WantedBy=default.target
+
+###Configure alertmanager on prometheus
+vim /etc/prometheus/prometheus.yml
+alerting:
+  alertmanagers:
+  - scheme: https
+  - basic_auth:
+      username: systemtest
+      password: systemtest
+  - static_configs:
+    - targets: ['prometheus.systemtest.xyz:9093']
+
+rule_files:
+  - "rules/basic.yml"
+
+###Open port for firewalld
+systemctl daemon-reload
+systemctl enable alertmanager
+systemctl start  alertmanager
+
+###Open port for firewalld
+firewall-cmd --add-port=9093/tcp --permanent
+firewall-cmd --reload

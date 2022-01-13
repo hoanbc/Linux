@@ -1,0 +1,34 @@
+###Download and unzip package
+wget https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-amd64.tar.gz
+tar -xzf node_exporter-1.3.1.linux-amd64.tar.gz
+
+###Create user prometheus
+sudo useradd --no-create-home --shell /bin/false prometheus
+
+###Create folder and copy file to folder
+mkdir /opt/prometheus
+mv node_exporter-1.3.1.linux-amd64 /opt/prometheus/node_exporter
+
+sudo chown -R prometheus:prometheus /opt/prometheus/
+cp -s /opt/prometheus/node_exporter/node_exporter /usr/bin/
+
+###Create service for node_exporter
+vim /etc/systemd/system/node_exporter.service
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+ExecStart=/usr/bin/node_exporter
+
+[Install]
+WantedBy=default.target
+
+###Start and enable service with boot
+systemctl enable --now node_exporter.service
+
+###Open port for firewalld
+firewall-cmd --permanent --add-port=9100/tcp
+firewall-cmd --reload
