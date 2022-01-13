@@ -1,0 +1,61 @@
+###Download and unzip package
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.19.0/blackbox_exporter-0.19.0.linux-amd64.tar.gz
+tar xvzf blackbox_exporter-0.19.0.linux-amd64.tar.gz
+
+###Create user blackbox
+sudo useradd -rs /bin/false blackbox
+
+###Create folder and copy file to folder
+sudo mkdir -p /etc/blackbox
+cp blackbox_exporter-0.19.0.linux-amd64/blackbox.yml /etc/blackbox/
+cp blackbox_exporter-0.19.0.linux-amd64/blackbox_exporter /usr/local/bin/
+
+sudo chown -R blackbox:blackbox /usr/local/bin/blackbox_exporter
+sudo chown -R blackbox:blackbox /etc/blackbox/*
+
+###Create service for blackbox
+vim /etc/systemd/system/blackbox.service
+[Unit]
+Description=Blackbox Exporter Service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=blackbox
+Group=blackbox
+ExecStart=/usr/local/bin/blackbox_exporter \
+  --config.file=/etc/blackbox/blackbox.yml \
+  --web.listen-address=":9115"
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+###Enable and start service blackbox with boot
+systemctl daemon-reload
+sudo systemctl enable blackbox.service
+systemctl start blackbox
+
+###Open port for firewalld
+irewall-cmd --add-port=9115/tcp --permanent
+firewall-cmd --reload
+
+###Configure prometheus
+vim /etc/prometheus/prometheus.yml
+scrape_configs:
+  - job_name: 'blackbox_exporter'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://kss.com.vn
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 192.168.1.151:9115

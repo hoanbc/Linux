@@ -59,7 +59,7 @@ alerting:
 rule_files:
   - "rules/basic.yml"
 
-###Open port for firewalld
+###Enable and start service alertmanager with boot
 systemctl daemon-reload
 systemctl enable alertmanager
 systemctl start  alertmanager
