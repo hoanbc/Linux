@@ -4,7 +4,7 @@
 vim /etc/alertmanager/alertmanager.yml
 global:
   resolve_timeout: 1m
-  slack_api_url: 'https://hooks.slack.com/services/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'
+  slack_api_url: 'https://hooksTEkBNeYJM32DhewRxwss'
 
 route:
   receiver: 'slack_bot'
