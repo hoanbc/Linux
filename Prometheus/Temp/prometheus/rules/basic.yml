@@ -1,0 +1,15 @@
+groups:
+  - name: basic_check
+    rules:
+    - record: job:node_cpu_seconds:avg_idle
+      expr: avg without(cpu)(rate(node_cpu_seconds_total{mode="idle"}[5m]))
+
+    - alert: Node_Exporter_Down
+      expr: up{job="node_exporter"} == 0
+      for: 30s
+      labels:
+        severity: 'critical'
+      annotations:
+        summary: 'Host {{ $labels.hostname }} with IPR {{ $labels.instance }} down more than 5 second.'
+        description: 'Test'
+

@@ -1,0 +1,25 @@
+global:
+  smtp_from: 'example@gmail.com'
+  smtp_smarthost: smtp.gmail.com:587
+  smtp_auth_username: 'example@gmail.com'
+  smtp_auth_identity: 'example@gmail.com'
+  smtp_auth_password: 'fqkvkumorgaqgkat'
+
+route:
+  # fallback receiver
+  receiver: admin
+  routes:
+    # Star Solutions.
+  - match_re:
+      app_type: (linux|windows)
+    # fallback receiver 
+    receiver: ss-admin
+
+receivers:
+- name: admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: ss-admin
+  email_configs:
+  - to: 'example@gmail.com'
