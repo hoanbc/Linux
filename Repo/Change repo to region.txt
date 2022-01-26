@@ -36,3 +36,4 @@ sudo yum clean all
 sudo yum repolist -v
 
 
+https://downloads.hpe.com/pub/softlib2/software1/sc-windows-uefi-sys/p29001646/v207495/cp050239.exe
