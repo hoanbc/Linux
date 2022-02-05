@@ -36,3 +36,5 @@ sudo yum clean all
 sudo yum repolist -v
 
 
+https://downloads.hpe.com/pub/softlib2/software1/sc-windows-uefi-sys/p29001646/v207495/cp050239.exe
+https://downloads.hpe.com/pub/softlib2/software1/fwpkg-generic/p966663190/v187396/bk017507.upd_header.pldm.fwpkg

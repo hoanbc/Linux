@@ -1,0 +1,17 @@
+What's going on?
+Notices about old repomd.xml files usually indicate one of three problems:
+
+The repository mirror has stale or outdated files. Not all mirrors get refreshed on the same schedule; sometimes yum will pick one that hasn't obtained new files since you last checked for updates. (This appears to be more prevalent with CentOS 8 mirror trees.)
+
+A caching proxy sits between you and the repository mirror, and that proxy is serving you outdated files. Many CentOS mirrors operate over plain HTTP, so the files can be cached by intermediaries.
+
+Your system clock is significantly incorrect.
+The solution
+As root, run yum clean metadata. This will remove a variety of cache files from within /var/cache/yum, including the most recent mirror list and XML definition for each repository. Fresh copies of these metadata files will be fetched the next time you run yum check-update.
+
+[root@host ~]# yum clean metadata
+Loaded plugins: fastestmirror
+Cleaning repos: base epel extras updates
+24 metadata files removed
+16 sqlite files removed
+0 metadata files removed
