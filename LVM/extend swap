@@ -1,0 +1,9 @@
+grep swap /etc/fstab 
+/dev/mapper/rhel_rhel8lab-swap swap                    swap    defaults        0 0
+
+swapoff -v /dev/mapper/rhel_rhel8lab-swap
+
+lvextend -L +1G /dev/rhel_rhel8lab/swap 
+mkswap /dev/mapper/rhel_rhel8lab-swap 
+
+swapon -v /dev/mapper/rhel_rhel8lab-swap 
