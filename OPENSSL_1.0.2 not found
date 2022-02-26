@@ -1,0 +1,10 @@
+ERROR: ImportError: /lib64/libcrypto.so.10: version `OPENSSL_1.0.2' not found (required by /usr/lib64/python2.7/lib-dynload/_ssl.so
+Affect: sshd cannot start
+
+Fix:
+tail -f /var/log/message | grep ssh
+
+rpm -ivh openssl-libs-1.0.2k-12.el7.x86_64.rpm --force
+rm -rf /lib/libcrypto.so.10
+ln -s /lib64/libcrypto.so.1.0.2k /lib/libcrypto.so.10
+chmod +x /lib64/libcrypto.so.1.0.2k
