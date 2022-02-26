@@ -1,0 +1,1 @@
+(&(objectClass=user)(|(memberOf=CN=satellite-tier1,OU=Group,OU=HBC,DC=systemtest,DC=local)(memberOf=CN=satellite-tier2,OU=Group,OU=HBC,DC=systemtest,DC=local)))

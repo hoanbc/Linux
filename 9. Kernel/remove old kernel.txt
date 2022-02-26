@@ -1,0 +1,30 @@
+remove old kernels
+
+Resolution
+Red Hat Enterprise Linux 5, 6, and 7
+The package-cleanup command can be used as shown below:
+
+# package-cleanup --oldkernels
+From the package-cleanup man page:
+
+     --oldkernels        Remove old kernel and kernel-devel packages
+     
+     --count=KERNELCOUNT
+                         Number of kernel packages to keep on the system
+                        (default 2)
+The number of kernels left in place on a system can be selected using the --count flag as shown. In the example below, the intent is to keep 3 kernels installed on the system and remove any others.
+
+# package-cleanup --oldkernels --count=3
+Red Hat Enterprise Linux 8
+
+The YUM version 4 (based on the upstream DNF project) method for removing kernels and keeping only the latest version and running kernel:
+
+# yum remove --oldinstallonly
+From the yum man page:
+
+       dnf [options] remove --oldinstallonly
+              Removes old installonly packages, keeping only latest versions and  version  of  running
+              kernel.
+In the instance where a user-defined number of kernels should be retained (similar to the --count functionality for package-cleanup), the following can be used. In the example below, the intent is to retain the latest 3 installonly packages:
+
+# yum remove $(yum repoquery --installonly --latest-limit=-3)

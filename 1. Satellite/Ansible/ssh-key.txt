@@ -1,0 +1,1 @@
+satellite-installer --foreman-proxy-plugin-remote-execution-ssh-ssh-identity-dir /keys  --foreman-proxy-plugin-remote-execution-ssh-ssh-identity-file id_rsa

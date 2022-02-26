@@ -1,0 +1,12 @@
+Now use the cursor keys to navigate to the line that starts withlinux. You need to append systemd.unit=emergency.target to the end of the line.
+
+LANG=en_US.UTF-8 systemd.unit=emergency.target
+
+Press Ctrl + x key to boot using the modified configuration.
+
+Log in to emergency mode by entering the root password.
+
+Use the mount command to remount the / file system read/write. This will enable you to edit the file system.
+
+# mount -o remount,rw /
+You should be able to rescue a broken system from the emergency mode. See more Linux guides below.
