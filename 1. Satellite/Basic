@@ -1,0 +1,12 @@
+###Hiện trang
+- Tốn nhiều thời gian cho việc cập nhật CVE trên môi trường Linux
+- Chưa có công cụ quản lý phiên bản gói cài đặt
+- Sử dụng qualys(cloud endpoint trả phí) cho việc kiểm tra CVE và tuân thủ chính sách cấu hình 
+
+
+###Thay đổi với giải pháp Red Hat Satellite
+- Kiểm tra, cập nhật CVE, Update nhanh chóng dễ dàng thông qua việc sử dụng Ansible
+- Quản lý giấy phép đăng ký
+- Quản lý phiên bản gói cài đặt theo từng môi trường Dev/UAT/Prod.
+- Tính năng quét CVE cập nhật theo dữ liệu từ Red Hat Errata
+- Tính năng quản lý tuân thủ chính sách cấu hình

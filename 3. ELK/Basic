@@ -1,0 +1,12 @@
+###Hiện trang
+- Khi có dịch vụ lỗi người quản trị cần phải truy cập vào nhiều hơn 2 máy chủ để xem nhật ký ứng dụng. Điều này gây
+ra sự phản hồi chậm chễ và có thể bỏ qua nhật ký quan trọng
+- Không có công cụ truy vấn dẫn tới việc phải đi xem từng dòng nhật ký, có nhiều lỗi đã từng gặp trong quá khứ nhưng người
+quản trị vẫn phải đi xem lại nhật ký từ đầu.
+- Không có công cụ hiển thị dạng biển đồ phân tích, cảnh báo sớm khi hệ thống gặp error ứng dụng
+
+###Thay đổi với giải pháp ELK Stack
+- Hỗ trợ đọc log từ nhiều nguồn ứng dụng trên một WebUI duy nhất thay vì phải truy cập vào các máy chủ
+- Khả năng tìm kiếm theo từ khóa và lọc dữ liệu theo mẫu mạnh mẽ
+- Cho phép lưu trữ nhật ký log dạng hot, warm, cool để lưu trữ
+- Có thể gửi cảnh báo nếu gặp error log vượt ngưỡng cho phép
