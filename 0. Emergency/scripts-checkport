@@ -10,10 +10,11 @@ VIP_1525_PORT=(20044 20047 20190 30044 30047 30080 40044 40047 40080)
 CHECK_PORT()
 {
 echo "$LOG_TIME Start check Port from $SRC_VM to VIP LOAN" >> $LOG_FILE
-for PORT in "${VIP_1517_PORT[@]}" ; do ; nc -w 5 -v ${DST_VIP[0]} $PORT </dev/null; echo "From $SRC_VM connect to ${DST_VIP[0]} port $PORT is $?check" >> $LOG_FILE ; done ;
-for PORT in "${VIP_1521_PORT[@]}" ; do ; nc -w 5 -v ${DST_VIP[1]} $PORT </dev/null; echo "From $SRC_VM connect to ${DST_VIP[1]} port $PORT is $?check" >> $LOG_FILE ; done ;
-for PORT in "${VIP_1525_PORT[@]}" ; do; nc -w 5 -v ${DST_VIP[2]} $PORT </dev/null ; echo "From $SRC_VM connect to ${DST_VIP[2]} port $PORT is $?check" >> $LOG_FILE ; done ;
+for PORT in "${VIP_1517_PORT[@]}" ; do nc -w 5 -v ${DST_VIP[0]} $PORT </dev/null; echo "From $SRC_VM connect to ${DST_VIP[0]} port $PORT is $?check" >> $LOG_FILE ; done ;
+for PORT in "${VIP_1521_PORT[@]}" ; do nc -w 5 -v ${DST_VIP[1]} $PORT </dev/null; echo "From $SRC_VM connect to ${DST_VIP[1]} port $PORT is $?check" >> $LOG_FILE ; done ;
+for PORT in "${VIP_1525_PORT[@]}" ; do nc -w 5 -v ${DST_VIP[2]} $PORT </dev/null; echo "From $SRC_VM connect to ${DST_VIP[2]} port $PORT is $?check" >> $LOG_FILE ; done ;
 sed -i 's/0check/SUCCESS/' $LOG_FILE
+sed -i 's/1check/FAILD/' $LOG_FILE
 echo "$LOG_TIME End check Port from $SRC_VM to VIP LOAN" >> $LOG_FILE
 }
 CHECK_PORT
