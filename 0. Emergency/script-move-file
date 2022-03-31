@@ -1,0 +1,39 @@
+#!/bin/bash
+BANK_NAME=(VNPOST SHINHAN VIETIN PAYOO MOMO)
+SOURCE_DIR=/tmp/src
+DESTINATION_DIR=/tmp/dest
+TODAY=(`date +%d`)
+MONTH=(`date +%b`)
+YEAR_MONTH=(`date +%Y%m`)
+LOG_FILE=/tmp/src/rec.log
+LOG_TIME=`date +"[%Y-%m-%d %H:%M:%S]"`
+MOVE_FILE()
+{
+for NAME in "${BANK_NAME[@]}";
+do
+    export SOURCE=$SOURCE_DIR/$NAME
+    export DESTINATION=$DESTINATION_DIR/$NAME/$YEAR_MONTH
+    export ARCHIVE=$SOURCE_DIR/ARCHIVE/$NAME
+
+    if [ $TODAY == '01' ]
+      then
+        echo "$LOG_TIME Create folder $DESTINATION" >> $LOG_FILE
+        echo "$DESTINATION"
+      fi
+    
+    for FILE in `ls -lrt $SOURCE | grep $MONTH | awk '{print $9}'`;
+    do
+      echo "cd $SOURCE"
+      echo "$LOG_TIME From $NAME folder copy $FILE to $DESTINATION" >> $LOG_FILE
+      echo "cp $FILE $DESTINATION/"
+      echo "$LOG_TIME From $NAME folder move $FILE to $ARCHIVE" >> $LOG_FILE
+      echo "mv $FILE $ARCHIVEi/"
+    done
+done
+}
+
+#####Start function#####
+echo "===== JOB START:$LOG_TIME =====" >> $LOG_FILE
+MOVE_FILE
+echo "===== JOB END:$LOG_TIME =====" >> $LOG_FILE
+exit 0
