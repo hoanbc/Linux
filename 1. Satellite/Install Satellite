@@ -9,9 +9,13 @@ vim /etc/hosts
 mkdir /mnt/satellite-6
 mount /dev/sr0 /mnt/satellite-6
 
-4) Copy Custom SSL to Server
+4) Convert SSL and copy Custom SSL to Server
+openssl x509 -inform DER -in root-ca.cer -out root-ca.crt
+openssl x509 -inform DER -in wildcard-systemtest.cer -out wildcard-systemtest.crt
+
 mkdir /etc/pki/tls/satellite
 cp *.systemtest* /etc/pki/tls/satellite
+cp root-ca.crt /etc/pki/tls/satellite
 update-ca-trust
 
 5) Install Red Hat Satellite
@@ -23,7 +27,7 @@ satellite-installer --scenario satellite \
 --foreman-initial-admin-password QWEasdQWE123 \
 --certs-server-cert "/etc/pki/tls/satellite/wildcard-systemtest.crt" \
 --certs-server-key "/etc/pki/tls/satellite/wildcard-systemtest.key" \
---certs-server-ca-cert "/etc/pki/tls/satellite/root-systemtest.crt"
+--certs-server-ca-cert "/etc/pki/tls/satellite/root-ca.crt"
 
 6) Open firewall
 firewall-cmd --add-port={80,443,5646,8443,9090}/tcp --permanent
