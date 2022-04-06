@@ -62,3 +62,138 @@ umount /eltshare
 pcs resource update eltsharefs directory="/eltshare"
 pcs resource update eltsharefs directory="/swap-eltshare"
 
+
+
+[9:24 AM] Long Nguyen Van (LDCC-SM)
+5. Configure fence device
+# confirm fence device disk (it is set on sda on this example)
+[root@node01 ~]# cat /proc/partitions
+major minor #blocks name
+2 0 4 fd0
+8 0 104857600 sda
+8 1 1048576 sda1
+8 2 103808000 sda2
+11 0 1048575 sr0
+253 0 52428800 dm-0
+253 1 16646144 dm-1
+8 16 20971520 sdb
+8 17 20967424 sdb1
+# confirm disk's ID
+[root@node01 ~]# ll /dev/disk/by-id | grep sdb
+lrwxrwxrwx 1 root root 9 Sep 21 15:01 scsi-360014050b97f147714641628b3d841f8 -> ../../sdb
+lrwxrwxrwx 1 root root 10 Sep 21 15:01 scsi-360014050b97f147714641628b3d841f8-part1 -> ../../sdb1
+lrwxrwxrwx 1 root root 9 Sep 21 15:01 wwn-0x60014050b97f147714641628b3d841f8 -> ../../sdb
+lrwxrwxrwx 1 root root 10 Sep 21 15:01 wwn-0x60014050b97f147714641628b3d841f8-part1 -> ../../sdb1
+[root@node01 ~]# pcs stonith create scsi-shooter fence_scsi pcmk_host_list="node01 node02" devices=/dev/disk/by-id/wwn-0x60014050b97f147714641628b3d841f8 meta provides=unfencing
+[root@node01 ~]# pcs status
+Cluster name: ha_cluster
+Stack: corosync
+Current DC: node02 (version 1.1.21-4.el7-f14e36fd43) - partition with quorum
+Last updated: Mon Sep 21 15:09:34 2020
+Last change: Mon Sep 21 15:09:31 2020 by root via cibadmin on node01
+2 nodes configured
+1 resource configured
+Online: [ node01 node02 ]
+Full list of resources:
+scsi-shooter (stonith:fence_scsi): Started node01
+Daemon Status:
+corosync: active/enabled
+pacemaker: active/enabled
+pcsd: active/enabled
+[root@node01 ~]# pcs property set no-quorum-policy=freeze
+[root@node01 ~]# pcs property set stonith-enabled=true
+[root@node01 ~]# pcs stonith show scsi-shooter
+Resource: scsi-shooter (class=stonith type=fence_scsi)
+Attributes: devices=/dev/disk/by-id/wwn-0x60014050b97f147714641628b3d841f8 pcmk_host_list="node01 node02"
+Meta Attrs: provides=unfencing
+Operations: monitor interval=60s (scsi-shooter-monitor-interval-60s)
+[root@node01 ~]# pcs property show
+Cluster Properties:
+cluster-infrastructure: corosync
+cluster-name: ha_cluster
+dc-version: 1.1.21-4.el7-f14e36fd43
+have-watchdog: false
+no-quorum-policy: freeze
+stonith-enabled: true
+
+[9:24 AM] Long Nguyen Van (LDCC-SM)
+6. Add required resources
+[root@node01 ~]# pcs resource create dlm ocf:pacemaker:controld op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+[root@node01 ~]# pcs resource create clvmd ocf:heartbeat:clvm op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+[root@node01 ~]# pcs constraint order start dlm-clone then clvmd-clone
+Adding dlm-clone clvmd-clone (kind: Mandatory) (Options: first-action=start then-action=start)
+[root@node01 ~]# pcs constraint colocation add clvmd-clone with dlm-clone
+[root@node01 ~]# pcs status resources
+Clone Set: dlm-clone [dlm]
+Started: [ node01 node02 ]
+Clone Set: clvmd-clone [clvmd]
+Started: [ node01 node02 ]
+7. Create volume on shared storage and format with GFS2.
+[root@node01 ~]# pvcreate /dev/sdb1
+WARNING: xfs signature detected on /dev/sdb1 at offset 0. Wipe it? [y/n]: y
+Wiping xfs signature on /dev/sdb1.
+Physical volume "/dev/sdb1" successfully created.
+# create cluster volume group
+[root@node01 ~]# vgcreate -cy gfs2vg /dev/sdb1
+Clustered volume group "gfs2vg" successfully created
+[root@node01 ~]# lvcreate -l100%FREE -n gfs2lv gfs2vg
+Logical volume "gfs2lv" created.
+[root@node01 ~]# mkfs.gfs2 -p lock_dlm -t ha_cluster:gfs2 -j 2 /dev/gfs2vg/gfs2lv --> Node: option -j 2 --> số 2 là số lượng node thuộc cluster, nếu 6 node thì đổi thành 6
+/dev/gfs2vg/gfs2lv is a symbolic link to /dev/dm-2
+This will destroy any data on /dev/dm-2
+Are you sure you want to proceed? [y/n] y
+Discarding device contents (may take a while on large devices): Done
+Adding journals: Done
+Building resource groups: Done
+Creating quota file: Done
+Writing superblock and syncing: Done
+Device: /dev/gfs2vg/gfs2lv
+Block size: 4096
+Device size: 19.99 GB (5240832 blocks)
+Filesystem size: 19.99 GB (5240829 blocks)
+Journals: 2
+Journal size: 64MB
+Resource groups: 82
+Locking protocol: "lock_dlm"
+Lock table: "ha_cluster:gfs2"
+UUID: b84a395f-098a-49f8-bdad-73fe947fa981
+8. Add shared storage to cluster resource:
+[root@node01 ~]# pcs resource create fs_gfs2 Filesystem \
+> device="/dev/gfs2vg/gfs2lv" directory="/gfs2" fstype="gfs2" \
+> options="noatime,nodiratime" op monitor interval=10s on-fail=fence clone interleave=true
+Assumed agent name 'ocf:heartbeat:Filesystem' (deduced from 'Filesystem')
+[root@node01 ~]# pcs resource show
+Clone Set: dlm-clone [dlm]
+Started: [ node01 node02 ]
+Clone Set: clvmd-clone [clvmd]
+Started: [ node01 node02 ]
+Clone Set: fs_gfs2-clone [fs_gfs2]
+Started: [ node01 node02 ]
+[root@node01 ~]# pcs constraint order start clvmd-clone then fs_gfs2-clone
+Adding clvmd-clone fs_gfs2-clone (kind: Mandatory) (Options: first-action=start then-action=start)
+[root@node01 ~]# pcs constraint colocation add fs_gfs2-clone with clvmd-clone
+[root@node01 ~]# pcs constraint show
+Location Constraints:
+Ordering Constraints:
+start dlm-clone then start clvmd-clone (kind:Mandatory)
+start clvmd-clone then start fs_gfs2-clone (kind:Mandatory)
+Colocation Constraints:
+clvmd-clone with dlm-clone (score:INFINITY)
+fs_gfs2-clone with clvmd-clone (score:INFINITY)
+Ticket Constraints:
+9. It's OK all. Make sure GFS2 filesystem is mounted on an active node and also make sure GFS2 mounts will move to another node if current active node will be down
+[root@node01 ~]# df -Th
+Filesystem Type Size Used Avail Use% Mounted on
+devtmpfs devtmpfs 1.9G 0 1.9G 0% /dev
+tmpfs tmpfs 1.9G 60M 1.8G 4% /dev/shm
+tmpfs tmpfs 1.9G 13M 1.9G 1% /run
+tmpfs tmpfs 1.9G 0 1.9G 0% /sys/fs/cgroup
+/dev/mapper/rhel-root xfs 50G 12G 39G 24% /
+/dev/sda1 xfs 1014M 289M 726M 29% /boot
+tmpfs tmpfs 378M 12K 378M 1% /run/user/42
+tmpfs tmpfs 378M 0 378M 0% /run/user/1000
+/dev/mapper/gfs2vg-gfs2lv gfs2 20G 131M 20G 1% /gfs2
+
+
+[VxRail-Virtual-SAN-Datastore-6cc2e9ad-6501-4bbe-933d-f0c1584bcd97] af77b860-3400-329b-f365-b49691b10cf4/DC_MGMT_ETL_APP01_10.252.25.220_3.vmdk
+
