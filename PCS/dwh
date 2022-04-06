@@ -3,7 +3,7 @@ cat /etc/hosts
 192.168.2.201   srv-pcs1-priv.systemtest.local  srv-pcs1-priv
 192.168.2.202   srv-pcs2-priv.systemtest.local  srv-pcs2-priv
 
-2) add new SCSI controller -> LSI Logic SAS -> SCSI Bus Sharing: Virtual on both VM
+2) add new SCSI controller -> LSI Logic SAS -> SCSI Bus Sharing: physical on both VM
 3) add new disk -> Disk Mode: Independent -Persistent -> controller 1 -> sharing: multiple-write -> save | VM2: use esxiting hard disk
 4) view id disk
 ll /dev/disk/by-id | grep sdb
