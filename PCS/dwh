@@ -1,0 +1,53 @@
+1) add nic -> add hosts
+cat /etc/hosts
+192.168.2.201   srv-pcs1-priv.systemtest.local  srv-pcs1-priv
+192.168.2.202   srv-pcs2-priv.systemtest.local  srv-pcs2-priv
+
+2) add new SCSI controller -> LSI Logic SAS -> SCSI Bus Sharing: physical on both VM
+3) add new disk -> Disk Mode: Independent -Persistent -> controller 1 -> sharing: multiple-write -> save | VM2: use esxiting hard disk
+4) view id disk
+ll /dev/disk/by-id | grep sdb
+
+5) add repos and install package
+subscription-manager repos --enable rhel-ha-for-rhel-7-server-rpms
+subscription-manager repos --enable=rhel-rs-for-rhel-7-server-rpms
+
+yum install pcs pacemaker fence-agents-all lvm2-cluster gfs2-utils  -y
+
+6) Create Hapassword
+passwd hacluster
+systemctl enable --now pcsd
+
+pcs cluster auth srv-pcs1-priv.systemtest.local srv-pcs2-priv.systemtest.local
+pcs cluster setup --start --name pcs-cluster srv-pcs1-priv.systemtest.local srv-pcs2-priv.systemtest.local
+pcs cluster enable --all
+pcs cluster status
+
+pcs stonith create scsi-shooter fence_scsi pcmk_host_list="srv-pcs1-priv.systemtest.local srv-pcs2-priv.systemtest.local" devices=/dev/disk/by-id/wwn-0x6000c29077f3877660dd22c2621d5643(info step4) meta provides=unfencing
+pcs property set stonith-enabled=true
+pcs property set no-quorum-policy=freeze
+
+/sbin/lvmconf --enable-cluster
+pcs resource create dlm ocf:pacemaker:controld op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+pcs resource create clvmd ocf:heartbeat:clvm op monitor interval=30s on-fail=fence clone interleave=true ordered=true
+pcs constraint order start dlm-clone then clvmd-clone
+pcs constraint colocation add clvmd-clone with dlm-clone
+
+
+pvcreate /dev/sdb
+vgcreate -Ay -cy vg-fsgfs2 /dev/sdb
+lvcreate -l100%FREE -n lv-fsgfs2 vg-fsgfs2
+
+mkfs.gfs2 -j2 -p lock_dlm -t pcs-cluster:fsgfs2 /dev/vg-fsgfs2/lv-fsgfs2
+pcs resource create fsgfs2 Filesystem device="/dev/vg-fsgfs2/lv-fsgfs2" directory="/swap-share" fstype="gfs2" options="noatime,nodiratime" op monitor interval=10s on-fail=fence clone interleave=true
+pcs constraint order start clvmd-clone then fsgfs2-clone
+pcs constraint colocation add fsgfs2-clone with clvmd-clone
+
+7)
+rsync  /share /swap-share
+vim /etc/fstab
+umount /eltshare
+
+pcs resource update fsgfs2 directory="/share"
+pcs resource update fsgfs2 directory="/swap-share"
+
