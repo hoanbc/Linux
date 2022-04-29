@@ -1,0 +1,10 @@
+[root@srv-satellite pluginconf.d]#  hammer content-view  list --organization "systemtest.local"
+----------------|---------------------------|---------------------------|-----------|---------------------|----------------------------
+CONTENT VIEW ID | NAME                      | LABEL                     | COMPOSITE | LAST PUBLISHED      | REPOSITORY IDS
+----------------|---------------------------|---------------------------|-----------|---------------------|----------------------------
+10              | content-view-rhel7        | content-view-rhel7        | false     | 2022/03/01 00:02:41 | 50, 51, 4, 8, 9, 15, 29, 30
+2               | Default Organization View | Default_Organization_View | false     | 2022/02/01 22:09:13 |
+----------------|---------------------------|---------------------------|-----------|---------------------|----------------------------
+
+[root@srv-satellite pluginconf.d]#  hammer content-view publish --async --id 10 --organization systemtest.local
+Content view is being published with task a25ac633-9bee-4649-952a-3103f23f43a9.
