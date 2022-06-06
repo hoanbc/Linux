@@ -1,0 +1,81 @@
+###Replicate MYSQL
+
+#Disable firewall
+systemctl disable --now ufw
+
+#Host file
+cat /etc/hosts
+192.168.1.161   srv-otp1
+192.168.1.162   srv-otp2
+
+#Edit mysqld.cnf node1
+vim /etc/mysql/mysql.conf.d/mysqld.cnf
+[mysqld]
+user            = mysql
+default-authentication-plugin=mysql_native_password
+bind-address            = 0.0.0.0
+mysqlx-bind-address     = 0.0.0.0
+server-id               = 1
+log_bin                 = /var/log/mysql/mysql-bin.log
+max_binlog_size   = 100M
+binlog_do_db            = pi
+
+#Edit mysqld.cnf node1
+vim /etc/mysql/mysql.conf.d/mysqld.cnf
+[mysqld]
+user            = mysql
+default-authentication-plugin=mysql_native_password
+bind-address            = 0.0.0.0
+mysqlx-bind-address     = 0.0.0.0
+server-id               = 2
+log_bin                 = /var/log/mysql/mysql-bin.log
+max_binlog_size   = 100M
+binlog_do_db            = pi
+
+#Get new server_uuid 
+systemctl stop mysql
+rm -f /var/lib/mysql/auto.cnf
+systemctl start mysql
+
+#Create new password for root mysql
+sudo mysql
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by 'K6&WHqACS7nw7z*k8y@';
+
+mysql_secure_installation
+
+#Create user for Replicate
+create user 'replicator'@'%' identified WITH mysql_native_password by 'kXNTyz7weM2iRAJ$YC6'; 
+grant replication slave on *.* to 'replicator'@'%'; 
+flush privileges;
+
+#Get info position node1
+mysql> show master status;
++------------------+----------+--------------+------------------+-------------------+
+| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set |
++------------------+----------+--------------+------------------+-------------------+
+| mysql-bin.000003 |    45329 | pi           |                  |                   |
++------------------+----------+--------------+------------------+-------------------+
+1 row in set (0.00 sec)
+
+-> execute this on node2
+start stop;
+CHANGE MASTER TO MASTER_HOST = 'srv-otp1', MASTER_USER = 'replicator', MASTER_PASSWORD = 'kXNTyz7weM2iRAJ$YC6', MASTER_LOG_FILE = 'mysql-bin.000003', MASTER_LOG_POS = 45329;
+start slave;
+
+#Get info position node2
+mysql> show master status;
++------------------+----------+--------------+------------------+-------------------+
+| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set |
++------------------+----------+--------------+------------------+-------------------+
+| mysql-bin.000003 |    2232 | pi           |                  |                   |
++------------------+----------+--------------+------------------+-------------------+
+1 row in set (0.00 sec)
+
+-> execute this on node1
+start stop;
+CHANGE MASTER TO MASTER_HOST = 'srv-otp1', MASTER_USER = 'replicator', MASTER_PASSWORD = 'kXNTyz7weM2iRAJ$YC6', MASTER_LOG_FILE = 'mysql-bin.000003', MASTER_LOG_POS = 2232;
+start slave;
+
+
+#Check service
+SHOW SLAVE STATUS\G
