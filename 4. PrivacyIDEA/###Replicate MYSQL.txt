@@ -58,7 +58,7 @@ mysql> show master status;
 1 row in set (0.00 sec)
 
 -> execute this on node2
-start stop;
+stop slave;
 CHANGE MASTER TO MASTER_HOST = 'srv-otp1', MASTER_USER = 'replicator', MASTER_PASSWORD = 'kXNTyz7weM2iRAJ$YC6', MASTER_LOG_FILE = 'mysql-bin.000003', MASTER_LOG_POS = 45329;
 start slave;
 
@@ -72,7 +72,7 @@ mysql> show master status;
 1 row in set (0.00 sec)
 
 -> execute this on node1
-start stop;
+stop slave;
 CHANGE MASTER TO MASTER_HOST = 'srv-otp1', MASTER_USER = 'replicator', MASTER_PASSWORD = 'kXNTyz7weM2iRAJ$YC6', MASTER_LOG_FILE = 'mysql-bin.000003', MASTER_LOG_POS = 2232;
 start slave;
 
