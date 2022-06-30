@@ -1,0 +1,3 @@
+echo 1>/sys/class/block/sdd/device/rescan
+
+https://kerneltalks.com/disk-management/how-to-rescan-disk-in-linux-after-extending-vmware-disk/
