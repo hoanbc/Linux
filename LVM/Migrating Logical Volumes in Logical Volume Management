@@ -1,0 +1,200 @@
+Introduction
+Migrating Logical Volume is one of the coolest and safest ways to replace a disk by moving the extents from one PV to another PV. In today’s guide let see how to perform a logical volume migration from one physical volume to another physical volume.
+
+Logical Volume Migration architect
+We will focus on only RHEL 7 based operating system. The method about to perform migration is using “pvmove”.
+
+Assume in our setup we have only one disk /dev/sdb1 with 100 GB in size. Now /dev/sdb1 is faulty and in a warning state, So you need to replace the disk with a new 100 GB disk. Let’s use “pvmove“ option to move the extents to a new PV.
+
+Using pvmove is the easiest way to migrate the logical volume by replacing the underlying old physical volume to the new one. The migration can be done during the peak production hours without any impact. Moreover, the users those who use the filesystem will not get notice the changes going behind the scene. Let’s start with preparing for a migration.
+
+Why Logical Volume Migration Required?
+To replace a faulty disk.
+Replace an existing smaller size disk with a large one.
+Preparing for Logical Volume Migration
+To work on this demonstration first we need to have PV, VG and LV. If you don’t have one start to set up by Partitioning the disks and creating a logical volume by following below guide.
+
+Create Logical volume management LVM file-system in Linux
+
+List and Verify Existing Setup
+Print all physical volume, Volume group and Logical volume to confirm the existing disks.
+
+[root@client1 ~]# df -hP /data/
+ Filesystem                     Size  Used Avail Use% Mounted on
+ /dev/mapper/vg01_data-lv_data  100G   66G   35G  66% /data
+[root@client1 ~]#
+Currently, 66% of the filesystem used.
+
+# pvs
+# vgs
+# lvs
+Output for your reference
+
+root@client1 ~]# pvs
+   PV         VG        Fmt  Attr PSize    PFree   
+   /dev/sda2  centos    lvm2 a--   <19.00g       0 
+   /dev/sdb1  vg01_data lvm2 a--  <100.00g       0 
+ [root@client1 ~]#
+ [root@client1 ~]# vgs
+   VG        #PV #LV #SN Attr   VSize    VFree
+   centos      1   2   0 wz--n-  <19.00g    0 
+   vg01_data   1   1   0 wz--n- <100.00g    0 
+ [root@client1 ~]# 
+ [root@client1 ~]# lvs
+   LV      VG        Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+   root    centos    -wi-ao----  <17.00g                                                    
+   swap    centos    -wi-ao----    2.00g                                                    
+   lv_data vg01_data -wi-ao---- <100.00g                                                    
+[root@client1 ~]#
+To verify which disks are currently used under the logical volume.
+
+# lvs -o +devices /dev/vg01_data/lv_data
+It’s good to know by running “lvs” command with “-o +devices” option.
+
+[root@client1 ~]# lvs -o +devices /dev/vg01_data/lv_data
+   LV      VG        Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert Devices     
+   lv_data vg01_data -wi-ao---- <100.00g                                                     /dev/sdb1(0)
+[root@client1 ~]#
+From the above output, it’s confirmed the physical disk /dev/sdb1 used under logical volume lv_data.
+
+# lsblk
+we have only one disk /dev/sdb1 under logical volume.
+
+[root@client1 ~]# lsblk 
+NAME                  MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda                     8:0    0   20G  0 disk 
+|-sda1                  8:1    0    1G  0 part /boot
+`-sda2                  8:2    0   19G  0 part 
+  |-centos-root       253:0    0   17G  0 lvm  /
+  `-centos-swap       253:1    0    2G  0 lvm  [SWAP]
+sdb                     8:16   0  100G  0 disk 
+`-sdb1                  8:17   0  100G  0 part 
+  `-vg01_data-lv_data 253:2    0  100G  0 lvm  /data
+sr0                    11:0    1  906M  0 rom  
+[root@client1 ~]#
+Run and get many pieces of information before starting with migration.
+
+# dmsetup deps /dev/mapper/vg01_data-lv_data
+Major and Minor of only one disk.
+
+[root@client1 ~]# dmsetup deps /dev/mapper/vg01_data-lv_data
+ 1 dependencies    : (8, 17)
+[root@client1 ~]#
+Keep a note on Major and Minor numbers. It will change once we replace the faulty PV with another PV.
+
+Start Migrating Logical volume
+Migrating a logical volume can be performed by running “pvmove” command. Let us start by creating a new Physical volume.
+
+[root@client1 ~]# pvcreate /dev/sdc1
+   Physical volume "/dev/sdc1" successfully created.
+[root@client1 ~]#
+By following, add the new PV to existing Volume Group vg01_data.
+
+[root@client1 ~]# vgextend vg01_data /dev/sdc1
+   Volume group "vg01_data" successfully extended
+[root@client1 ~]#
+Print the VG to verify
+
+[root@client1 ~]# vgs
+   VG        #PV #LV #SN Attr   VSize   VFree   
+   centos      1   2   0 wz--n- <19.00g       0 
+   vg01_data   2   1   0 wz--n- 199.99g <100.00g
+[root@client1 ~]# 
+Once the VG added print using “PVS” with option “+pv_used” now we are able to see the free PV in the 6th column of the output.
+
+[root@client1 ~]# pvs -o+pv_used
+   PV         VG        Fmt  Attr PSize    PFree    Used    
+   /dev/sda2  centos    lvm2 a--   <19.00g       0   <19.00g
+   /dev/sdb1  vg01_data lvm2 a--  <100.00g       0  <100.00g
+   /dev/sdc1  vg01_data lvm2 a--  <100.00g <100.00g       0 
+[root@client1 ~]#
+Once the volume group added with new disk start the migration by running “pvmove” command with options and arguments. To understand how to use it you can find the following syntax.
+
+# pvmove -n <logical_volume_to_move> <source_device> <destination_device>
+We are migrating /dev/sdb1 to /dev/sdc1.
+
+# pvmove -n /dev/vg01_data/lv_data /dev/sdb1 /dev/sdc1
+-n – Name of the logical volume.
+-b – To run-in the background.
+-i 5 To print the status every 5 seconds.
+Logical Volume Migration using pvmove
+Logical Volume Migration using pvmove
+While doing a “pvmove” we can use the “-b” option to run in the background. To monitor the progress we can use “lvs” from a new shell. Else use “-i” with pvmove command to print the status with an interval value to show the migration progress.
+
+If you need to see the current status we can run below command as well.
+
+# lvs -a -o +devices
+Or watch the progress.
+
+# watch -n 0.5 lvs -a -o +devices
+Once completed, Check the logical volume migration by running “lvs” command with more options. Here we should see the old disk /dev/sdb1 will be replaced by /dev/sdc1.
+
+[root@client1 ~]# lvs -o +devices /dev/vg01_data/lv_data 
+   LV      VG        Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert Devices     
+   lv_data vg01_data -wi-ao---- <100.00g                                                     /dev/sdc1(0)
+Once the disk migrated the physical volume /dev/sdb1 will be completely free from any (PE) extent allocation.
+
+# pvs -o +pv_used
+Use -o option with +pv_used to print the used physical volume.
+
+[root@client1 ~]# pvs -o +pv_used
+   PV         VG        Fmt  Attr PSize    PFree    Used    
+   /dev/sda2  centos    lvm2 a--   <19.00g       0   <19.00g
+   /dev/sdb1  vg01_data lvm2 a--  <100.00g <100.00g       0 
+   /dev/sdc1  vg01_data lvm2 a--  <100.00g       0  <100.00g
+[root@client1 ~]#
+Let’s remove the faulty/free disk from the Volume Group.
+
+Remove the faulty disk
+Once disk free from any allocation it’s safe to remove it from the Volume Group by running “vgreduce” command.
+
+# vgreduce vg01_data /dev/sdb1
+Disk removed from the VG
+
+[root@client1 ~]# vgreduce vg01_data /dev/sdb1
+   Removed "/dev/sdb1" from volume group "vg01_data"
+[root@client1 ~]#
+Verify the disk removal from VG and run “vgs” to confirm the current VG size.
+
+Once the disk removed from the VG, By following we should release the disk from Physical Volume as well.
+
+# vgs
+# pvs
+Print to verify
+
+[root@client1 ~]# vgs
+   VG        #PV #LV #SN Attr   VSize    VFree
+   centos      1   2   0 wz--n-  <19.00g    0 
+   vg01_data   1   1   0 wz--n- <100.00g    0 
+ [root@client1 ~]#
+ [root@client1 ~]# pvs
+   PV         VG        Fmt  Attr PSize    PFree   
+   /dev/sda2  centos    lvm2 a--   <19.00g       0 
+   /dev/sdb1            lvm2 ---  <100.00g <100.00g
+   /dev/sdc1  vg01_data lvm2 a--  <100.00g       0 
+[root@client1 ~]#
+Remove the Physical Volume using “pvremove”.
+
+# pvremove /dev/sdb1
+PV remove and partitioned disk left alone.
+
+[root@client1 ~]# pvremove /dev/sdb1
+   Labels on physical volume "/dev/sdb1" successfully wiped.
+[root@client1 ~]#
+Now we should get a clean output while we running “pvs”.
+
+[root@client1 ~]# pvs
+   PV         VG        Fmt  Attr PSize    PFree
+   /dev/sda2  centos    lvm2 a--   <19.00g    0 
+   /dev/sdc1  vg01_data lvm2 a--  <100.00g    0 
+[root@client1 ~]#
+As we discussed earlier, just compare the output of dmsetup before migration and after migration, Now it will have different Major & Minor numbers.
+
+# dmsetup deps /dev/mapper/vg01_data-lv_data
+This is expected because we have replaced with a new disk.
+
+[root@client1 ~]# dmsetup deps /dev/mapper/vg01_data-lv_data
+ 1 dependencies    : (8, 33)
+[root@client1 ~]#
+That’s it we have completed with the easiest way of migrating a Logical volume.
+
