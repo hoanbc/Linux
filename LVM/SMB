@@ -1,0 +1,6 @@
+#Mount SMB
+vim /etc/fstab
+//ipsmb/FOLDER  cifs  username=account,domain=local_cluster,password=123@123a,file_mode=0777,dir_mode=0777
+
+#Force umount SMB
+sudo umount -a -t cifs -l
