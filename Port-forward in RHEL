@@ -1,0 +1,12 @@
+##Edit sysctl.conf
+vim /etc/sysctl.conf
+net.ipv4.ip_forward = 0
+
+###Apply new config sysctl.conf
+sysctl -p
+
+###Firewalld
+firewall-cmd --add-rich-rule 'rule family="ipv4" forward-port port="3306" protocol="tcp" to-port="3306" to-addr="10.0.33.238"'  --permanent
+firewall-cmd --add-rich-rule 'rule family="ipv4" forward-port port="3307" protocol="tcp" to-port="3306" to-addr="10.3.6.178"' --permanent
+firewall-cmd --add-masquerade --permanent
+firewall-cmd --reload
