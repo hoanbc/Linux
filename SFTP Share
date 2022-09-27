@@ -1,0 +1,22 @@
+###Create user
+useradd hbc-corp
+passwd hbc-corp
+
+###Change permission for user home foler
+chmod 755 /home/hbc-corp/
+chown root:root /home/hbc-corp/
+mkdir /home/hbc-corp/send
+mkdir /home/hbc-corp/receive
+chown hbc-corp:hbc-corp /home/hbc-corp/send/
+chown hbc-corp:hbc-corp /home/hbc-corp/receive/
+chmod 777 /home/hbc-corp/send/
+chmod 777 /home/hbc-corp/receive/
+
+###Edit file sshd
+vim /etc/ssh/sshd_config
+########### SFTP for LFVN-PTI ###############
+Match User lfvn_pti
+        ChrootDirectory /home/hbc-corp/
+        X11Forwarding no
+        AllowTcpForwarding no
+        ForceCommand internal-sftp
