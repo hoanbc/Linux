@@ -1,0 +1,6 @@
+###Extend size disk on VMware
+###Resize disk on OS
+echo 1 > /sys/class/block/sdg/device/rescan
+
+lvextend /dev/vg-hbc-store1/lv-hbc-storage1 /dev/sdg
+xfs_growfs /dev/mapper/vg--hbc--storage1-lv--hbc--storage1
