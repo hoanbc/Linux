@@ -1,0 +1,6 @@
+fdisk /dev/sda
+p -> d -> 2 -> n -> 2 -> t -> 8e -> w
+
+pvresize rhel /dev/sda2
+lvextend /dev/rhel/root /dev/sda2
+xfs_growfs /dev/rhel/root
