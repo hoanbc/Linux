@@ -1,0 +1,22 @@
+openssl x509 -inform DER -in ROOT-CA.cer -out ROOT-CA.crt
+install ROOT-CA.crt  /etc/pki/tls/certs/
+ln -s ROOT-CA.crt  /etc/pki/tls/certs/$(openssl x509 -noout -hash -in /etc/pki/tls/certs/ROOT-CA.crt).0
+
+
+LDAP configuration
+Enable users authentication through LDAP server: Yes
+Hosts: srv-dc.testvn.local
+LDAP port: 636
+Base DN: OU=TESTVN,DC=testvn,DC=local
+Username: CN=ldap.teampass,OU=TESTVN,DC=testvn,DC=local
+Password: 123@123a
+User Distinguished Name: distinguishedname
+User name attribute: samaccountname
+User Object Filter: (&(objectClass=user)(CN=grp-user1,OU=TESTVN,DC=testvn,DC=local))
+LDAP server type: Active Directory
+Use LDAP through SSL (LDAPS): Yes
+Use LDAP through TLS: yes
+Certificate check for LDAP TLS: LDAP_OPT_X_TLS_NEVER
+Teampass local users only: No
+Local and LDAP users: Yes
+Hide forgot password link on Home page: Yes

@@ -1,0 +1,28 @@
+sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo yum install -y https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+
+yum install yum-utils
+yum module enable php:remi-8.0 -y
+sudo yum-config-manager --enable remi-php80
+
+yum install php php-cli php-common php-mbstring php-bcmath php-xml php-gd php-mysql php-ldap mariadb-server httpd git -y
+
+systemctl enable --now mariadb
+mysql_secure_installation
+mysql -u root -p
+MariaDB [(none)]> create database teampassdb character set utf8 collate utf8_bin;
+MariaDB [(none)]> grant all privileges on teampassdb.* to teampassuser@localhost identified by "123@123a";
+MariaDB [(none)]> flush privileges;
+
+
+cd /var/www/html
+git clone https://github.com/nilsteampassnet/TeamPass.git
+cd TeamPass/
+mkdir includes/libraries/csrfp/log
+chmod -R 775 /var/www/html/TeamPass
+chown -R apache:apache /var/www/html/TeamPass
+sudo chmod 0777 install/ includes/ includes/config/ includes/avatars/ includes/libraries/csrfp/libs/ includes/libraries/csrfp/js/ includes/libraries/csrfp/log/ files/ upload/
+
+vim /etc/httpd/conf.d/teampass.conf
+systemctl enable --now httpd
+rm -rf install/
