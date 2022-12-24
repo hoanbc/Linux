@@ -15,6 +15,12 @@ MariaDB [(none)]> grant all privileges on teampassdb.* to teampassuser@localhost
 MariaDB [(none)]> flush privileges;
 
 
+vim /etc/php.ini
+memory_limit = 2048M
+upload_max_filesize = 10M
+max_execution_time = 30
+date.timezone = Asia/Ho_Chi_Minh
+
 cd /var/www/html
 git clone https://github.com/nilsteampassnet/TeamPass.git
 cd TeamPass/
@@ -24,5 +30,26 @@ chown -R apache:apache /var/www/html/TeamPass
 sudo chmod 0777 install/ includes/ includes/config/ includes/avatars/ includes/libraries/csrfp/libs/ includes/libraries/csrfp/js/ includes/libraries/csrfp/log/ files/ upload/
 
 vim /etc/httpd/conf.d/teampass.conf
+<VirtualHost *:80>   
+     ServerAdmin devops@testvn.click
+     DocumentRoot /var/www/html/TeamPass   
+     ServerName teampass.testvn.click
+     <Directory /var/www/html/TeamPass>
+
+          Options FollowSymlinks
+          AllowOverride All
+          Require all granted
+     </Directory>   
+
+     ErrorLog /var/log/httpd/teampass_error.log
+     CustomLog /var/log/httpd/teampass_access.log combined
+
+</VirtualHost>
+
+
 systemctl enable --now httpd
 rm -rf install/
+
+option if firewalld is enable: firewall-cmd --add-service={http,httpd} --permanent
+
+access website: http://teampass.testvn.click/install/install.php
