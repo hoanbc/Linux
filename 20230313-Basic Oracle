@@ -1,0 +1,21 @@
+###View all oracle instant
+cat /etc/oratab
+
+###Start instant
+su - oracle
+. oraenv
+-> Enter instance name
+
+sqlplus /as sysdba
+startup
+exit
+
+SHUTDOWN IMMEDIATE
+
+ps -ef | grep pmon
+
+###Start listener
+lsnrctl start
+lsnrctl status
+
+ps -ef | grep tns
