@@ -11,10 +11,11 @@ write_enable=YES
 local_umask=022
 dirmessage_enable=YES
 ftpd_banner=Welcome to HoanBC FTP service.
-allow_writeable_chroot=YES
+pam_service_name=vsftpd
 hide_ids=YES
 chroot_local_user=YES
-pam_service_name=vsftpd
+allow_writeable_chroot=YES
+
 
 ###Connect
 listen=YES
