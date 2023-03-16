@@ -1,0 +1,68 @@
+---
+###Install vsftpd
+yum install vsftpd -Y
+
+---
+###Configure
+vim /etc/vsftpd/vsftpd.conf
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+ftpd_banner=Welcome to HoanBC FTP service.
+allow_writeable_chroot=YES
+hide_ids=YES
+chroot_local_user=YES
+pam_service_name=vsftpd
+
+###Connect
+listen=YES
+listen_ipv6=NO
+listen_port=50021
+pasv_min_port=50030
+pasv_max_port=50040
+idle_session_timeout=600
+data_connection_timeout=120
+
+##Logging
+xferlog_enable=YES
+xferlog_std_format=YES
+xferlog_file=/var/log/xferlog
+dual_log_enable=YES
+vsftpd_log_file= /var/log/vsftpd.log
+
+###Limit Users
+userlist_enable=YES
+userlist_file=/etc/vsftpd/userlist
+userlist_deny=NO
+
+###SSL
+tcp_wrappers=YES
+rsa_cert_file=/etc/ssl/private/vsftpd.pem
+rsa_private_key_file=/etc/ssl/private/vsftpd.pem
+ssl_enable=YES
+allow_anon_ssl=NO
+force_local_data_ssl=YES
+force_local_logins_ssl=YES
+ssl_tlsv1=NO
+ssl_tlsv1_1=YES
+ssl_tlsv1_2=YES
+ssl_sslv2=NO
+ssl_sslv3=NO
+require_ssl_reuse=NO
+ssl_ciphers=HIGH
+
+---
+###Enable with boot
+systemctl enable --now vsftpd
+
+---
+###Create users
+useradd ftpuser
+passwd ftpuser
+
+---
+###Open firewalld
+firewall-cmd --add-port={50021,50030-50040}/tcp --permanent
+firewall-cmd --reload
