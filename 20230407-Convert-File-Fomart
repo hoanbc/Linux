@@ -1,0 +1,11 @@
+You can use Vim programmatically with the option -c {command}:
+
+DOS to Unix:
+
+vim file.txt -c "set ff=unix" -c ":wq"
+Unix to DOS:
+
+vim file.txt -c "set ff=dos" -c ":wq"
+"set ff=unix/dos" means change fileformat (ff) of the file to Unix/DOS end of line format.
+
+":wq" means write the file to disk and quit the editor (allowing to use the command in a loop).
