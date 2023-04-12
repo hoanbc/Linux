@@ -1,0 +1,8 @@
+###Check default selinux port of sshd
+semanage port -l | grep ssh
+
+###Add port 20022 for ssh
+sudo semanage port -a -t ssh_port_t -p tcp 20022
+
+###Check
+semanage port -l | grep ssh
