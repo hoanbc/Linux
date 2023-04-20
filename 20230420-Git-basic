@@ -1,0 +1,7 @@
+git clone -b sit https://gitlab.testvn.click/devops/iac.git
+git branch -a
+
+git add *
+git commit -m with the message
+git push
+
