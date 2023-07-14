@@ -1,0 +1,6 @@
+sudo su
+growpart /dev/sda 4
+sudo su -
+unshare --mount
+mount -o remount,rw /sysroot
+xfs_growfs /sysroot
