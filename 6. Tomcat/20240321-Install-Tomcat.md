@@ -1,9 +1,12 @@
-### Create user for running tomcat
+### Create user tomcat and cicuser
 ```yml
+useradd -m -d /opt/tomcat -s /usr/sbin/nologin  tomcat
+
 useradd cicuser
 sudo usermod -a -G systemd-journal cicuser
+sudo usermod -a -G tomcat cicuser
 ```
-### Allow user for start and stop services
+### Allow cicuser for start and stop services
 ```yml
 cicuser         ALL=(ALL)       NOPASSWD: /bin/systemctl stop tomcat
 cicuser         ALL=(ALL)       NOPASSWD: /bin/systemctl start tomcat
@@ -22,7 +25,12 @@ readlink -f $(which java)
 ```yml
 wget https://dlcdn.apache.org/tomcat/tomcat-10/v10.1.19/bin/apache-tomcat-10.1.19.tar.gz
 tar -xzvf apache-tomcat-10.1.19.tar.gz
-mv apache-tomcat-10.1.19 /opt/tomcat
+cd apache-tomcat-10.1.19
+mv * /opt/tomcat/
+chmod 770 /opt/tomcat
+chown -R tomcat:tomcat /opt/tomcat/
+cd /opt/tomcat
+rm -rf .bash* BUILDING.txt CONTRIBUTING.md R* LICENSE NOTICE
 ```
 ### Create service for tomcat 
 ```ynk
@@ -40,7 +48,7 @@ Environment="JAVA_OPTS=-Djava.security.egd=file:///dev/urandom"
 Environment="CATALINA_BASE=/opt/tomcat"
 Environment="CATALINA_HOME=/opt/tomcat"
 Environment="CATALINA_PID=/opt/tomcat/temp/tomcat.pid"
-Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+Environment="CATALINA_OPTS=-Xms2048M -Xmx4096M -server -XX:+UseParallelGC"
 ExecStart=/opt/tomcat/bin/startup.sh
 ExecStop=/opt/tomcat/bin/shutdown.sh
 
