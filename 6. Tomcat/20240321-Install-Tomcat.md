@@ -33,8 +33,8 @@ cd /opt/tomcat
 rm -rf .bash* BUILDING.txt CONTRIBUTING.md R* LICENSE NOTICE
 ```
 ### Create service for tomcat 
-```ynk
 vim /etc/systemd/system/tomcat.service
+```ynk
 [Unit]
 Description=Tomcat 10 servlet container with port 8080
 After=network.target
