@@ -1,0 +1,19 @@
+### Disable / Enable Resource
+```yml
+pcs resource disable fs_gfs2 --wait=5
+pcs resource enable fs_gfs2 --wait=5
+```
+### Disable / Enable Cluster
+```yml
+pcs property set maintenance-mode=false
+cluster stop --all
+cluster start --all
+```
+### Update Resource
+```yml
+pcs resource update fs_gfs2 directory="/oldcommon"
+```
+### Rsync
+```yml
+rsync -avhp -v  --exclude={'*.log.*','*.zip*','*.tar*','*.dump*',LOGS/*,LARSH/*,DOWNLOAD_FILES/*,DOWNLOAD/*,BACKUP_LOGS/*} /common/ /backup
+```
